@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 16px;
+      background-color: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+
+    button {
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    #export-zip {
+      background-color: #10a37f;
+    }
+
+    #export-zip:hover {
+      background-color: #0e8c6d;
+    }
+
+    #debug-btn {
+      background-color: #e65100;
+    }
+
+    #debug-btn:hover {
+      background-color: #bf360c;
+    }
+
+    .panel {
+      flex: 1;
+      background: #fff;
+      border-radius: 4px;
+      padding: 16px;
+      overflow: auto;
+      border: 1px solid #e0e0e0;
+      margin-top: 8px;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    #error {
+      color: #d93025;
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <button id="export-zip">Exporter en ZIP</button>
+  <button id="debug-btn">Debug Propriétés Figma</button>
+  <div id="error"></div>
+
+  <div class="panel">
+    <pre id="debug-output">Sélectionnez une frame et cliquez sur Debug pour voir ses propriétés brutes.</pre>
+  </div>
+
+  <script>
+    document.getElementById('export-zip').onclick = () => {
+      document.getElementById('error').style.display = 'none';
+      document.getElementById('debug-output').innerText = 'Génération du ZIP en cours...';
+      parent.postMessage({ pluginMessage: { type: 'generate' } }, '*');
+    };
+
+    document.getElementById('debug-btn').onclick = () => {
+      document.getElementById('error').style.display = 'none';
+      document.getElementById('debug-output').innerText = 'Extraction des données...';
+      parent.postMessage({ pluginMessage: { type: 'debug' } }, '*');
+    };
+
+    onmessage = (event) => {
+      const msg = event.data ? event.data.pluginMessage : undefined;
+      if (!msg) return;
+
+      if (msg.type === 'success') {
+        document.getElementById('debug-output').innerText = 'ZIP prêt. Téléchargement en cours...';
+
+        const zip = new JSZip();
+        let scriptTag = '';
+        if (msg.js && msg.js.trim() !== '') {
+          scriptTag = '<script type="text/javascript" src="script.js" defer><' + '/script>';
+          zip.file("script.js", msg.js);
+        }
+
+        const fullHtml = `
+          <!DOCTYPE html>
+          <html lang="fr">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Export Figma</title>
+            <link rel="stylesheet" href="style.css">
+            ${scriptTag}
+          </head>
+          
+          <body>
+            ${msg.html}
+          </body>
+          </html>
+        `;
+
+        zip.file("index.html", fullHtml);
+        zip.file("style.css", msg.css);
+
+        console.log('[UI] ZIP contents prepared, calling generateAsync...');
+        const zipStart = Date.now();
+        zip.generateAsync({ type: "blob" }).then((content) => {
+          console.log(`[UI] ZIP generated in ${Date.now() - zipStart}ms`);
+          const url = URL.createObjectURL(content);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = "export_figma.zip";
+          a.click();
+          URL.revokeObjectURL(url);
+          console.log(`[UI] ZIP download triggered.`);
+        });
+      } else if (msg.type === 'debug-success') {
+        document.getElementById('debug-output').innerText = JSON.stringify(msg.data, null, 2);
+      } else if (msg.type === 'error') {
+        const errEl = document.getElementById('error');
+        errEl.innerText = msg.message;
+        errEl.style.display = 'block';
+        document.getElementById('debug-output').innerText = '';
+      }
+    };
+  </script>
+</body>
+
+</html>
