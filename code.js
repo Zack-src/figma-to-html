@@ -47,7 +47,8 @@ figma.ui.onmessage = async (msg) => {
         js: context.js
       });
     } catch (err) {
-      figma.ui.postMessage({ type: 'error', message: err.message });
+      const errorMsg = (err && err.message) ? err.message : String(err);
+      figma.ui.postMessage({ type: 'error', message: errorMsg });
     }
   } else if (msg.type === 'debug') {
     try {
@@ -57,81 +58,96 @@ figma.ui.onmessage = async (msg) => {
         data: debugData
       });
     } catch (err) {
-      figma.ui.postMessage({ type: 'error', message: err.message });
+      const errorMsg = (err && err.message) ? err.message : String(err);
+      figma.ui.postMessage({ type: 'error', message: errorMsg });
     }
   }
 };
 
 async function extractNodeData(node) {
-  const safeKeys = [
-    'id',
-    'name',
-    'type',
-    'x', 'y',
-    'width', 'height',
-    'rotation',
-    'layoutMode',
-    'layoutPositioning',
-    'primaryAxisAlignItems',
-    'counterAxisAlignItems',
-    'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-    'itemSpacing',
-    'layoutSizingHorizontal', 'layoutSizingVertical', 'layoutWrap',
-    'opacity',
-    'cornerRadius', 'topLeftRadius', 'topRightRadius', 'bottomLeftRadius', 'bottomRightRadius',
-    'fills',
-    'strokes', 'strokeWeight',
-    'effects',
-    'fontName', 'fontSize',
-    'characters',
-    'textAlignHorizontal',
-    'textAlignVertical',
-    'lineHeight',
-    'componentProperties',
-    'variantProperties',
-    'clipsContent',
-    'overflowDirection',
-    'reactions'
-  ];
+  try {
+    const safeKeys = [
+      'id',
+      'name',
+      'type',
+      'x', 'y',
+      'width', 'height',
+      'rotation',
+      'layoutMode',
+      'layoutPositioning',
+      'primaryAxisAlignItems',
+      'counterAxisAlignItems',
+      'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+      'itemSpacing',
+      'layoutSizingHorizontal', 'layoutSizingVertical', 'layoutWrap',
+      'opacity',
+      'cornerRadius', 'topLeftRadius', 'topRightRadius', 'bottomLeftRadius', 'bottomRightRadius',
+      'fills',
+      'strokes', 'strokeWeight',
+      'effects',
+      'fontName', 'fontSize',
+      'characters',
+      'textAlignHorizontal',
+      'textAlignVertical',
+      'lineHeight',
+      'componentProperties',
+      'variantProperties',
+      'clipsContent',
+      'overflowDirection',
+      'reactions'
+    ];
 
-  let obj = {};
+    let obj = {};
 
-  if (node.parent) {
-    obj.parentType = node.parent.type;
-    if ('layoutMode' in node.parent) {
-      obj.parentLayoutMode = node.parent.layoutMode;
-    }
-  }
-
-  if (node.type === 'INSTANCE') {
-    try {
-      const mainComp = await node.getMainComponentAsync();
-      if (mainComp) {
-        obj.mainComponentId = mainComp.id;
-        obj.mainComponentName = mainComp.name;
+    if (node.parent) {
+      obj.parentType = node.parent.type;
+      if ('layoutMode' in node.parent) {
+        obj.parentLayoutMode = node.parent.layoutMode;
       }
-    } catch (e) { }
-  }
+    }
 
-  for (const key of safeKeys) {
-    if (key in node) {
+    if (node.type === 'INSTANCE') {
       try {
-        if (node[key] === figma.mixed) {
-          obj[key] = "mixed";
-        } else if (key === 'fills' || key === 'strokes' || key === 'effects') {
-          obj[key] = JSON.parse(JSON.stringify(node[key]));
-        } else {
-          obj[key] = node[key];
+        const mainComp = await node.getMainComponentAsync();
+        if (mainComp) {
+          obj.mainComponentId = mainComp.id;
+          obj.mainComponentName = mainComp.name;
         }
       } catch (e) { }
     }
-  }
 
-  if ('children' in node && node.children.length > 0) {
-    obj.children = await Promise.all(node.children.map(extractNodeData));
-  }
+    for (const key of safeKeys) {
+      if (key in node) {
+        try {
+          if (node[key] === figma.mixed) {
+            obj[key] = "mixed";
+          } else if (key === 'fills' || key === 'strokes' || key === 'effects') {
+            obj[key] = JSON.parse(JSON.stringify(node[key]));
+          } else {
+            obj[key] = node[key];
+          }
+        } catch (e) { }
+      }
+    }
 
-  return obj;
+    if ('children' in node && node.children.length > 0) {
+      obj.children = await Promise.all(node.children.map(extractNodeData));
+    }
+
+    return obj;
+  } catch (err) {
+    if (err && err.nodeEnriched) throw err;
+
+    try {
+      figma.currentPage.selection = [node];
+      figma.viewport.scrollAndZoomIntoView([node]);
+    } catch (e) { }
+
+    const errorMsg = (err && err.message) ? err.message : String(err);
+    const enrichedError = new Error(`[Erreur sur "${node.name}" (${node.type})] ${errorMsg}`);
+    enrichedError.nodeEnriched = true;
+    throw enrichedError;
+  }
 }
 
 function rgbaToCss(color, opacity = 1) {
@@ -399,52 +415,268 @@ document.querySelector('#${wrapperId}').addEventListener('mouseleave', function(
 }
 
 async function processNode(node, parentLayoutMode = 'NONE', isRoot = false, context = { js: '' }, isVariantState = false) {
-  if (!node.visible) return { html: '', css: '' };
+  try {
+    if (!node.visible) return { html: '', css: '' };
 
-  console.log(`[Plugin] Processing node: ${node.name} (ID: ${node.id}, Type: ${node.type})`);
+    console.log(`[Plugin] Processing node: ${node.name} (ID: ${node.id}, Type: ${node.type})`);
 
-  let html = '';
-  let css = '';
-  const className = getClassName(node);
-  let cssRules = [];
-  const isText = node.type === 'TEXT';
+    let html = '';
+    let css = '';
+    const className = getClassName(node);
+    let cssRules = [];
+    const isText = node.type === 'TEXT';
 
-  // --- GESTION DES INTERACTIONS (PROTOTYPE) ---
-  if (!isVariantState && node.type === 'INSTANCE' && node.reactions && node.reactions.length > 0) {
-    const hasChangeTo = node.reactions.some(r => r.action && r.action.type === 'NODE' && r.action.navigation === 'CHANGE_TO');
-    if (hasChangeTo) {
-      return await processInteractiveGraph(node, parentLayoutMode, isRoot, context);
-    }
-  }
-
-  const isAbsolute = !isRoot && !isVariantState && (node.layoutPositioning === 'ABSOLUTE' || (parentLayoutMode === 'NONE' && node.parent && node.parent.type !== 'PAGE' && node.parent.type !== 'DOCUMENT'));
-
-  if (isAbsolute) {
-    let left = node.x;
-    let top = node.y;
-
-    if (node.parent && node.parent.type === 'GROUP') {
-      left = node.x - node.parent.x;
-      top = node.y - node.parent.y;
+    // --- GESTION DES INTERACTIONS (PROTOTYPE) ---
+    if (!isVariantState && node.type === 'INSTANCE' && node.reactions && node.reactions.length > 0) {
+      const hasChangeTo = node.reactions.some(r => r.action && r.action.type === 'NODE' && r.action.navigation === 'CHANGE_TO');
+      if (hasChangeTo) {
+        return await processInteractiveGraph(node, parentLayoutMode, isRoot, context);
+      }
     }
 
-    cssRules.push(`position: absolute;`);
-    cssRules.push(`left: ${left}px;`);
-    cssRules.push(`top: ${top}px;`);
-  } else if (isRoot) {
-    cssRules.push(`position: relative;`);
-    cssRules.push(`margin: 0 auto;`);
-  } else {
-    cssRules.push(`position: relative;`);
-  }
+    const isAbsolute = !isRoot && !isVariantState && (node.layoutPositioning === 'ABSOLUTE' || (parentLayoutMode === 'NONE' && node.parent && node.parent.type !== 'PAGE' && node.parent.type !== 'DOCUMENT'));
 
-  if (isExportableAsSvg(node)) {
-    console.log(`[Plugin] Exporting SVG for: ${node.name}`);
-    const svgStart = Date.now();
-    const svgBytes = await node.exportAsync({ format: 'SVG' });
-    console.log(`[Plugin] SVG export finished in ${Date.now() - svgStart}ms`);
+    if (isAbsolute) {
+      let left = node.x;
+      let top = node.y;
 
-    const svgString = String.fromCharCode.apply(null, Array.from(new Uint8Array(svgBytes)));
+      if (node.parent && node.parent.type === 'GROUP') {
+        left = node.x - node.parent.x;
+        top = node.y - node.parent.y;
+      }
+
+      cssRules.push(`position: absolute;`);
+      cssRules.push(`left: ${left}px;`);
+      cssRules.push(`top: ${top}px;`);
+    } else if (isRoot) {
+      cssRules.push(`position: relative;`);
+      cssRules.push(`margin: 0 auto;`);
+    } else {
+      cssRules.push(`position: relative;`);
+    }
+
+    if (isExportableAsSvg(node)) {
+      try {
+        console.log(`[Plugin] Exporting SVG for: ${node.name}`);
+        const svgStart = Date.now();
+        const svgBytes = await node.exportAsync({ format: 'SVG' });
+        console.log(`[Plugin] SVG export finished in ${Date.now() - svgStart}ms`);
+
+        let svgString = '';
+        try {
+          svgString = new TextDecoder().decode(svgBytes);
+        } catch (e) {
+          // Fallback si TextDecoder n'est pas dispo
+          svgString = Array.from(svgBytes).map(b => String.fromCharCode(b)).join('');
+        }
+
+        if (isAbsolute) {
+          if ('width' in node) cssRules.push(`width: ${node.width}px;`);
+          if ('height' in node) cssRules.push(`height: ${node.height}px;`);
+        } else if (parentLayoutMode !== 'NONE') {
+          applySizingRules(node, parentLayoutMode, cssRules);
+        } else {
+          if ('width' in node) cssRules.push(`width: ${node.width}px;`);
+          if ('height' in node) cssRules.push(`height: ${node.height}px;`);
+        }
+
+        if (cssRules.length > 0) {
+          css += `.${className} {\n  ${cssRules.join('\n  ')}\n}\n`;
+        }
+        return { html: `<div class="${className}">${svgString}</div>\n`, css };
+      } catch (svgErr) {
+        console.warn(`[Plugin] Échec de l'export SVG pour "${node.name}", passage en mode div standard.`, svgErr);
+        // Si l'SVG échoue, on continue la fonction pour essayer d'exporter le node en tant que div/CSS standard
+      }
+    }
+
+    if ('opacity' in node && node.opacity < 1) {
+      cssRules.push(`opacity: ${node.opacity};`);
+    }
+
+    if ('fills' in node && Array.isArray(node.fills)) {
+      const visibleFills = node.fills.filter(f => f.visible !== false);
+
+      const imageFill = visibleFills.find(f => f.type === 'IMAGE');
+      const gradientFill = visibleFills.find(f => f.type === 'GRADIENT_LINEAR');
+      const solidFill = visibleFills.filter(f => f.type === 'SOLID').pop();
+
+      if (imageFill && imageFill.imageHash) {
+        console.log(`[Plugin] Fetching image bytes for hash: ${imageFill.imageHash}`);
+        const imgStart = Date.now();
+        const image = figma.getImageByHash(imageFill.imageHash);
+        if (image) {
+          try {
+            const bytes = await image.getBytesAsync();
+            const base64 = figma.base64Encode(bytes);
+            const imageOpacity = imageFill.opacity !== undefined ? imageFill.opacity : 1;
+
+            if (imageOpacity < 1) {
+              // On utilise un pseudo-élément pour que l'opacité du fill n'affecte pas les enfants
+              css += `.${className}::before {\n`;
+              css += `  content: "";\n`;
+              css += `  position: absolute;\n`;
+              css += `  top: 0; left: 0; width: 100%; height: 100%;\n`;
+              css += `  background-image: url('data:image/png;base64,${base64}');\n`;
+              css += `  background-size: cover;\n`;
+              css += `  background-position: center;\n`;
+              css += `  opacity: ${imageOpacity};\n`;
+              css += `  z-index: -1;\n`;
+              css += `  border-radius: inherit;\n`;
+              css += `  pointer-events: none;\n`;
+              css += `}\n`;
+
+              // On s'assure que le parent a un contexte de positionnement
+              if (!cssRules.some(r => r.startsWith('position:'))) {
+                cssRules.push(`position: relative;`);
+              }
+            } else {
+              // Image opaque, on peut la mettre directement sur le div
+              cssRules.push(`background-image: url('data:image/png;base64,${base64}');`);
+              cssRules.push(`background-size: cover;`);
+              cssRules.push(`background-position: center;`);
+            }
+            console.log(`[Plugin] Image fetched & encoded in ${Date.now() - imgStart}ms`);
+          } catch (imgErr) {
+            console.error(`[Plugin] Échec de l'obtention de l'image pour ${node.name}:`, imgErr);
+          }
+        }
+      } else if (gradientFill) {
+        const t = gradientFill.gradientTransform;
+        const angleRad = Math.atan2(t[1][0], t[0][0]);
+        const angleDeg = Math.round(angleRad * (180 / Math.PI));
+        const stops = gradientFill.gradientStops.map(stop => {
+          return `${rgbaToCss(stop.color)} ${Math.round(stop.position * 100)}%`;
+        }).join(', ');
+
+        const gradientCss = `linear-gradient(${angleDeg + 90}deg, ${stops})`;
+        if (isText) {
+          cssRules.push(`background: ${gradientCss};`);
+          cssRules.push(`-webkit-background-clip: text;`);
+          cssRules.push(`-webkit-text-fill-color: transparent;`);
+        } else {
+          cssRules.push(`background: ${gradientCss};`);
+        }
+      } else if (solidFill) {
+        if (isText) {
+          cssRules.push(`color: ${rgbaToCss(solidFill.color, solidFill.opacity)};`);
+        } else {
+          cssRules.push(`background-color: ${rgbaToCss(solidFill.color, solidFill.opacity)};`);
+        }
+      }
+    }
+
+    if ('strokes' in node && Array.isArray(node.strokes) && node.strokes.length > 0) {
+      const solidStroke = node.strokes.find(s => s.type === 'SOLID' && s.visible !== false);
+      if (solidStroke) {
+        const strokeColor = rgbaToCss(solidStroke.color, solidStroke.opacity);
+        if ('strokeWeight' in node && node.strokeWeight !== figma.mixed) {
+          cssRules.push(`border: ${node.strokeWeight}px solid ${strokeColor};`);
+        } else {
+          if (node.strokeTopWeight > 0) cssRules.push(`border-top: ${node.strokeTopWeight}px solid ${strokeColor};`);
+          if (node.strokeRightWeight > 0) cssRules.push(`border-right: ${node.strokeRightWeight}px solid ${strokeColor};`);
+          if (node.strokeBottomWeight > 0) cssRules.push(`border-bottom: ${node.strokeBottomWeight}px solid ${strokeColor};`);
+          if (node.strokeLeftWeight > 0) cssRules.push(`border-left: ${node.strokeLeftWeight}px solid ${strokeColor};`);
+        }
+      }
+    }
+
+    if ('effects' in node && Array.isArray(node.effects) && node.effects.length > 0) {
+      const shadows = [];
+      const textShadows = [];
+      for (const e of node.effects) {
+        if (e.type === 'DROP_SHADOW' && e.visible !== false) {
+          shadows.push(`${e.offset.x}px ${e.offset.y}px ${e.radius}px ${e.spread || 0}px ${rgbaToCss(e.color)}`);
+          textShadows.push(`${e.offset.x}px ${e.offset.y}px ${e.radius}px ${rgbaToCss(e.color)}`);
+        } else if (e.type === 'INNER_SHADOW' && e.visible !== false) {
+          shadows.push(`inset ${e.offset.x}px ${e.offset.y}px ${e.radius}px ${e.spread || 0}px ${rgbaToCss(e.color)}`);
+        }
+      }
+      if (isText && textShadows.length > 0) {
+        cssRules.push(`text-shadow: ${textShadows.join(', ')};`);
+      } else if (!isText && shadows.length > 0) {
+        cssRules.push(`box-shadow: ${shadows.join(', ')};`);
+      }
+    }
+
+    if ('cornerRadius' in node && node.cornerRadius !== figma.mixed && node.cornerRadius > 0) {
+      cssRules.push(`border-radius: ${node.cornerRadius}px;`);
+    } else if ('topLeftRadius' in node) {
+      cssRules.push(`border-radius: ${node.topLeftRadius}px ${node.topRightRadius}px ${node.bottomRightRadius}px ${node.bottomLeftRadius}px;`);
+    }
+
+    if ('overflowDirection' in node && node.overflowDirection !== 'NONE') {
+      if (node.overflowDirection === 'VERTICAL') {
+        cssRules.push(`overflow-y: auto;`);
+        cssRules.push(`overflow-x: hidden;`);
+      } else if (node.overflowDirection === 'HORIZONTAL') {
+        cssRules.push(`overflow-x: auto;`);
+        cssRules.push(`overflow-y: hidden;`);
+      } else {
+        cssRules.push(`overflow: auto;`);
+      }
+    } else if ('clipsContent' in node && node.clipsContent) {
+      cssRules.push(`overflow: hidden;`);
+    }
+
+    if (isText) {
+      cssRules.push(`display: flex;`);
+      cssRules.push(`flex-direction: column;`);
+
+      if (node.textAlignVertical === 'CENTER') cssRules.push(`justify-content: center;`);
+      else if (node.textAlignVertical === 'BOTTOM') cssRules.push(`justify-content: flex-end;`);
+      else cssRules.push(`justify-content: flex-start;`);
+
+      if (node.textAlignHorizontal === 'CENTER') cssRules.push(`text-align: center;`);
+      else if (node.textAlignHorizontal === 'RIGHT') cssRules.push(`text-align: right;`);
+      else if (node.textAlignHorizontal === 'JUSTIFIED') cssRules.push(`text-align: justify;`);
+      else cssRules.push(`text-align: left;`);
+
+      if (node.fontName !== figma.mixed) {
+        cssRules.push(`font-family: '${node.fontName.family}', sans-serif;`);
+        cssRules.push(`font-weight: ${mapFontWeight(node.fontName.style)};`);
+      }
+      if (node.fontSize !== figma.mixed) {
+        cssRules.push(`font-size: ${node.fontSize}px;`);
+      }
+
+      if (node.lineHeight !== figma.mixed) {
+        if (node.lineHeight.unit === 'PIXELS') {
+          cssRules.push(`line-height: ${node.lineHeight.value}px;`);
+        } else if (node.lineHeight.unit === 'PERCENT') {
+          cssRules.push(`line-height: ${node.lineHeight.value}%;`);
+        }
+      }
+
+      html += `<div class="${className}">${node.characters.replace(/\n/g, '<br>')}</div>\n`;
+    } else {
+      html += `<div class="${className}">\n`;
+    }
+
+    let currentLayoutMode = 'NONE';
+    if ('layoutMode' in node && node.layoutMode !== 'NONE') {
+      currentLayoutMode = node.layoutMode;
+      if (!isText) {
+        cssRules.push(`display: flex;`);
+        cssRules.push(`flex-direction: ${node.layoutMode === 'HORIZONTAL' ? 'row' : 'column'};`);
+        if (node.layoutWrap === 'WRAP') cssRules.push(`flex-wrap: wrap;`);
+
+        if (node.itemSpacing !== figma.mixed && node.itemSpacing > 0) {
+          cssRules.push(`gap: ${node.itemSpacing}px;`);
+        }
+
+        const pt = node.paddingTop !== figma.mixed ? node.paddingTop : 0;
+        const pr = node.paddingRight !== figma.mixed ? node.paddingRight : 0;
+        const pb = node.paddingBottom !== figma.mixed ? node.paddingBottom : 0;
+        const pl = node.paddingLeft !== figma.mixed ? node.paddingLeft : 0;
+        if (pt > 0 || pr > 0 || pb > 0 || pl > 0) {
+          cssRules.push(`padding: ${pt}px ${pr}px ${pb}px ${pl}px;`);
+        }
+
+        cssRules.push(`align-items: ${getAlign(node.counterAxisAlignItems)};`);
+        cssRules.push(`justify-content: ${getAlign(node.primaryAxisAlignItems)};`);
+      }
+    }
 
     if (isAbsolute) {
       if ('width' in node) cssRules.push(`width: ${node.width}px;`);
@@ -459,194 +691,31 @@ async function processNode(node, parentLayoutMode = 'NONE', isRoot = false, cont
     if (cssRules.length > 0) {
       css += `.${className} {\n  ${cssRules.join('\n  ')}\n}\n`;
     }
-    return { html: `<div class="${className}">${svgString}</div>\n`, css };
-  }
 
-  if ('opacity' in node && node.opacity < 1) {
-    cssRules.push(`opacity: ${node.opacity};`);
-  }
-
-  if ('fills' in node && Array.isArray(node.fills)) {
-    const visibleFills = node.fills.filter(f => f.visible !== false);
-
-    const imageFill = visibleFills.find(f => f.type === 'IMAGE');
-    const gradientFill = visibleFills.find(f => f.type === 'GRADIENT_LINEAR');
-    const solidFill = visibleFills.filter(f => f.type === 'SOLID').pop();
-
-    if (imageFill && imageFill.imageHash) {
-      console.log(`[Plugin] Fetching image bytes for hash: ${imageFill.imageHash}`);
-      const imgStart = Date.now();
-      const image = figma.getImageByHash(imageFill.imageHash);
-      if (image) {
-        const bytes = await image.getBytesAsync();
-        const base64 = figma.base64Encode(bytes);
-        cssRules.push(`background-image: url('data:image/png;base64,${base64}');`);
-        cssRules.push(`background-size: cover;`);
-        cssRules.push(`background-position: center;`);
-        console.log(`[Plugin] Image fetched & encoded in ${Date.now() - imgStart}ms`);
-      }
-    } else if (gradientFill) {
-      const t = gradientFill.gradientTransform;
-      const angleRad = Math.atan2(t[1][0], t[0][0]);
-      const angleDeg = Math.round(angleRad * (180 / Math.PI));
-      const stops = gradientFill.gradientStops.map(stop => {
-        return `${rgbaToCss(stop.color)} ${Math.round(stop.position * 100)}%`;
-      }).join(', ');
-
-      const gradientCss = `linear-gradient(${angleDeg + 90}deg, ${stops})`;
-      if (isText) {
-        cssRules.push(`background: ${gradientCss};`);
-        cssRules.push(`-webkit-background-clip: text;`);
-        cssRules.push(`-webkit-text-fill-color: transparent;`);
-      } else {
-        cssRules.push(`background: ${gradientCss};`);
-      }
-    } else if (solidFill) {
-      if (isText) {
-        cssRules.push(`color: ${rgbaToCss(solidFill.color, solidFill.opacity)};`);
-      } else {
-        cssRules.push(`background-color: ${rgbaToCss(solidFill.color, solidFill.opacity)};`);
-      }
-    }
-  }
-
-  if ('strokes' in node && Array.isArray(node.strokes) && node.strokes.length > 0) {
-    const solidStroke = node.strokes.find(s => s.type === 'SOLID' && s.visible !== false);
-    if (solidStroke) {
-      const strokeColor = rgbaToCss(solidStroke.color, solidStroke.opacity);
-      if ('strokeWeight' in node && node.strokeWeight !== figma.mixed) {
-        cssRules.push(`border: ${node.strokeWeight}px solid ${strokeColor};`);
-      } else {
-        if (node.strokeTopWeight > 0) cssRules.push(`border-top: ${node.strokeTopWeight}px solid ${strokeColor};`);
-        if (node.strokeRightWeight > 0) cssRules.push(`border-right: ${node.strokeRightWeight}px solid ${strokeColor};`);
-        if (node.strokeBottomWeight > 0) cssRules.push(`border-bottom: ${node.strokeBottomWeight}px solid ${strokeColor};`);
-        if (node.strokeLeftWeight > 0) cssRules.push(`border-left: ${node.strokeLeftWeight}px solid ${strokeColor};`);
-      }
-    }
-  }
-
-  if ('effects' in node && Array.isArray(node.effects) && node.effects.length > 0) {
-    const shadows = [];
-    const textShadows = [];
-    for (const e of node.effects) {
-      if (e.type === 'DROP_SHADOW' && e.visible !== false) {
-        shadows.push(`${e.offset.x}px ${e.offset.y}px ${e.radius}px ${e.spread || 0}px ${rgbaToCss(e.color)}`);
-        textShadows.push(`${e.offset.x}px ${e.offset.y}px ${e.radius}px ${rgbaToCss(e.color)}`);
-      } else if (e.type === 'INNER_SHADOW' && e.visible !== false) {
-        shadows.push(`inset ${e.offset.x}px ${e.offset.y}px ${e.radius}px ${e.spread || 0}px ${rgbaToCss(e.color)}`);
-      }
-    }
-    if (isText && textShadows.length > 0) {
-      cssRules.push(`text-shadow: ${textShadows.join(', ')};`);
-    } else if (!isText && shadows.length > 0) {
-      cssRules.push(`box-shadow: ${shadows.join(', ')};`);
-    }
-  }
-
-  if ('cornerRadius' in node && node.cornerRadius !== figma.mixed && node.cornerRadius > 0) {
-    cssRules.push(`border-radius: ${node.cornerRadius}px;`);
-  } else if ('topLeftRadius' in node) {
-    cssRules.push(`border-radius: ${node.topLeftRadius}px ${node.topRightRadius}px ${node.bottomRightRadius}px ${node.bottomLeftRadius}px;`);
-  }
-
-  if ('overflowDirection' in node && node.overflowDirection !== 'NONE') {
-    if (node.overflowDirection === 'VERTICAL') {
-      cssRules.push(`overflow-y: auto;`);
-      cssRules.push(`overflow-x: hidden;`);
-    } else if (node.overflowDirection === 'HORIZONTAL') {
-      cssRules.push(`overflow-x: auto;`);
-      cssRules.push(`overflow-y: hidden;`);
-    } else {
-      cssRules.push(`overflow: auto;`);
-    }
-  } else if ('clipsContent' in node && node.clipsContent) {
-    cssRules.push(`overflow: hidden;`);
-  }
-
-  if (isText) {
-    cssRules.push(`display: flex;`);
-    cssRules.push(`flex-direction: column;`);
-
-    if (node.textAlignVertical === 'CENTER') cssRules.push(`justify-content: center;`);
-    else if (node.textAlignVertical === 'BOTTOM') cssRules.push(`justify-content: flex-end;`);
-    else cssRules.push(`justify-content: flex-start;`);
-
-    if (node.textAlignHorizontal === 'CENTER') cssRules.push(`text-align: center;`);
-    else if (node.textAlignHorizontal === 'RIGHT') cssRules.push(`text-align: right;`);
-    else if (node.textAlignHorizontal === 'JUSTIFIED') cssRules.push(`text-align: justify;`);
-    else cssRules.push(`text-align: left;`);
-
-    if (node.fontName !== figma.mixed) {
-      cssRules.push(`font-family: '${node.fontName.family}', sans-serif;`);
-      cssRules.push(`font-weight: ${mapFontWeight(node.fontName.style)};`);
-    }
-    if (node.fontSize !== figma.mixed) {
-      cssRules.push(`font-size: ${node.fontSize}px;`);
-    }
-
-    if (node.lineHeight !== figma.mixed) {
-      if (node.lineHeight.unit === 'PIXELS') {
-        cssRules.push(`line-height: ${node.lineHeight.value}px;`);
-      } else if (node.lineHeight.unit === 'PERCENT') {
-        cssRules.push(`line-height: ${node.lineHeight.value}%;`);
+    if ('children' in node && !isText) {
+      for (const child of node.children) {
+        const childResult = await processNode(child, currentLayoutMode, false, context);
+        html += childResult.html;
+        css += childResult.css;
       }
     }
 
-    html += `<div class="${className}">${node.characters.replace(/\n/g, '<br>')}</div>\n`;
-  } else {
-    html += `<div class="${className}">\n`;
-  }
-
-  let currentLayoutMode = 'NONE';
-  if ('layoutMode' in node && node.layoutMode !== 'NONE') {
-    currentLayoutMode = node.layoutMode;
     if (!isText) {
-      cssRules.push(`display: flex;`);
-      cssRules.push(`flex-direction: ${node.layoutMode === 'HORIZONTAL' ? 'row' : 'column'};`);
-      if (node.layoutWrap === 'WRAP') cssRules.push(`flex-wrap: wrap;`);
-
-      if (node.itemSpacing !== figma.mixed && node.itemSpacing > 0) {
-        cssRules.push(`gap: ${node.itemSpacing}px;`);
-      }
-
-      const pt = node.paddingTop !== figma.mixed ? node.paddingTop : 0;
-      const pr = node.paddingRight !== figma.mixed ? node.paddingRight : 0;
-      const pb = node.paddingBottom !== figma.mixed ? node.paddingBottom : 0;
-      const pl = node.paddingLeft !== figma.mixed ? node.paddingLeft : 0;
-      if (pt > 0 || pr > 0 || pb > 0 || pl > 0) {
-        cssRules.push(`padding: ${pt}px ${pr}px ${pb}px ${pl}px;`);
-      }
-
-      cssRules.push(`align-items: ${getAlign(node.counterAxisAlignItems)};`);
-      cssRules.push(`justify-content: ${getAlign(node.primaryAxisAlignItems)};`);
+      html += `</div>\n`;
     }
-  }
 
-  if (isAbsolute) {
-    if ('width' in node) cssRules.push(`width: ${node.width}px;`);
-    if ('height' in node) cssRules.push(`height: ${node.height}px;`);
-  } else if (parentLayoutMode !== 'NONE') {
-    applySizingRules(node, parentLayoutMode, cssRules);
-  } else {
-    if ('width' in node) cssRules.push(`width: ${node.width}px;`);
-    if ('height' in node) cssRules.push(`height: ${node.height}px;`);
-  }
+    return { html, css };
+  } catch (err) {
+    if (err && err.nodeEnriched) throw err;
 
-  if (cssRules.length > 0) {
-    css += `.${className} {\n  ${cssRules.join('\n  ')}\n}\n`;
-  }
+    try {
+      figma.currentPage.selection = [node];
+      figma.viewport.scrollAndZoomIntoView([node]);
+    } catch (e) { }
 
-  if ('children' in node && !isText) {
-    for (const child of node.children) {
-      const childResult = await processNode(child, currentLayoutMode, false, context);
-      html += childResult.html;
-      css += childResult.css;
-    }
+    const errorMsg = (err && err.message) ? err.message : String(err);
+    const enrichedError = new Error(`[Erreur sur "${node.name}" (${node.type})] ${errorMsg}`);
+    enrichedError.nodeEnriched = true;
+    throw enrichedError;
   }
-
-  if (!isText) {
-    html += `</div>\n`;
-  }
-
-  return { html, css };
 }
