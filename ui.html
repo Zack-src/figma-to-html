@@ -4,149 +4,539 @@
 <head>
   <meta charset="UTF-8">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-css.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js"></script>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', sans-serif;
-      margin: 0;
-      padding: 16px;
-      background-color: #f5f5f5;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1e1e1e;
+      color: #ccc;
+      height: 100vh;
       display: flex;
       flex-direction: column;
-      height: 100vh;
-      box-sizing: border-box;
+      overflow: hidden;
     }
 
-    button {
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 10px 16px;
+    /* ── Top bar ── */
+    .top-bar {
+      display: flex;
+      gap: 6px;
+      padding: 8px 10px;
+      background: #252526;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+    }
+    .top-bar button {
+      font-size: 11px;
       font-weight: 600;
+      padding: 6px 14px;
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
-      width: 100%;
+      color: #fff;
+    }
+    #btn-generate { background: #10a37f; }
+    #btn-generate:hover { background: #0e8c6d; }
+    #btn-debug { background: #e65100; }
+    #btn-debug:hover { background: #bf360c; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      background: #252526;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+    }
+    .tab {
+      padding: 7px 16px;
+      font-size: 11px;
+      color: #888;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      user-select: none;
+      transition: color .15s;
+    }
+    .tab:hover { color: #ccc; }
+    .tab.active { color: #fff; border-bottom-color: #10a37f; }
+
+    /* ── Tab panels ── */
+    .tab-panel {
+      flex: 1;
+      display: none;
+      overflow: auto;
+      min-height: 0;
+    }
+    .tab-panel.active { display: flex; flex-direction: column; }
+
+    /* ── Options panel ── */
+    #panel-options { padding: 10px 12px; gap: 10px; }
+    .opt-group {
+      background: #2d2d2d;
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .opt-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #10a37f;
+      text-transform: uppercase;
+      letter-spacing: .5px;
       margin-bottom: 8px;
     }
-
-    #export-zip {
-      background-color: #10a37f;
+    .opt-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
     }
-
-    #export-zip:hover {
-      background-color: #0e8c6d;
-    }
-
-    #debug-btn {
-      background-color: #e65100;
-    }
-
-    #debug-btn:hover {
-      background-color: #bf360c;
-    }
-
-    .panel {
+    .opt-row label {
+      font-size: 11px;
+      color: #bbb;
       flex: 1;
-      background: #fff;
+      cursor: pointer;
+    }
+    .opt-row input[type="checkbox"] {
+      accent-color: #10a37f;
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+    .opt-row select {
+      background: #1e1e1e;
+      color: #ccc;
+      border: 1px solid #444;
       border-radius: 4px;
-      padding: 16px;
-      overflow: auto;
-      border: 1px solid #e0e0e0;
-      margin-top: 8px;
+      padding: 3px 6px;
+      font-size: 11px;
     }
 
-    pre {
+    /* ── Code panels ── */
+    #panel-code { padding: 0; }
+    .code-tabs {
+      display: flex;
+      background: #1e1e1e;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+    }
+    .code-tab {
+      padding: 5px 14px;
+      font-size: 10px;
+      color: #888;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .code-tab:hover { color: #ccc; }
+    .code-tab.active { color: #fff; border-bottom-color: #569cd6; }
+    .code-content {
+      flex: 1;
+      overflow: auto;
+      padding: 8px;
+      min-height: 0;
+    }
+    .code-content pre {
       margin: 0;
+      font-size: 11px;
+      line-height: 1.5;
       white-space: pre-wrap;
       word-wrap: break-word;
-      font-family: monospace;
-      font-size: 12px;
+    }
+    .code-content pre code {
+      font-family: 'Consolas', 'Fira Code', monospace;
     }
 
-    #error {
-      color: #d93025;
-      font-size: 14px;
-      margin-bottom: 8px;
+    /* ── Debug panel ── */
+    #panel-debug { padding: 8px; }
+    #panel-debug pre {
+      font-size: 11px;
+      font-family: 'Consolas', monospace;
+      color: #d4d4d4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    /* ── Error bar ── */
+    #error-bar {
       display: none;
+      background: #5c1a1a;
+      color: #ff8a80;
+      font-size: 11px;
+      padding: 6px 10px;
+      flex-shrink: 0;
+    }
+
+    /* ── Status bar ── */
+    .status-bar {
+      background: #007acc;
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 10px;
+      flex-shrink: 0;
+    }
+
+    /* ── Responsive breakpoints section ── */
+    #responsive-section {
+      display: none;
+      margin-top: 4px;
+      padding: 6px 8px;
+      background: #252526;
+      border-radius: 4px;
+    }
+    #responsive-section.visible { display: block; }
+    .bp-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+      font-size: 11px;
+      color: #bbb;
+    }
+    .bp-row input[type="number"] {
+      width: 70px;
+      background: #1e1e1e;
+      color: #ccc;
+      border: 1px solid #444;
+      border-radius: 3px;
+      padding: 2px 4px;
+      font-size: 11px;
+    }
+    .bp-row .bp-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   </style>
 </head>
 
 <body>
-  <button id="export-zip">Exporter en ZIP</button>
-  <button id="debug-btn">Debug Propriétés Figma</button>
-  <div id="error"></div>
+  <!-- Top bar -->
+  <div class="top-bar">
+    <button id="btn-generate">▶ Générer</button>
+    <button id="btn-debug">🔍 Debug</button>
+  </div>
 
-  <div class="panel">
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="options">Options</div>
+    <div class="tab" data-tab="code">Code</div>
+    <div class="tab" data-tab="debug">Debug</div>
+  </div>
+
+  <!-- Error bar -->
+  <div id="error-bar"></div>
+
+  <!-- OPTIONS PANEL -->
+  <div id="panel-options" class="tab-panel active">
+
+    <div class="opt-group">
+      <div class="opt-group-title">Code &amp; Standards</div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-cleanCode" checked>
+        <label for="opt-cleanCode">Code propre (BEM, sans IDs Figma)</label>
+      </div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-designTokens" checked>
+        <label for="opt-designTokens">Design Tokens (CSS Variables)</label>
+      </div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-semanticHtml" checked>
+        <label for="opt-semanticHtml">Sémantique HTML5 auto</label>
+      </div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-cssGrid">
+        <label for="opt-cssGrid">Détection CSS Grid</label>
+      </div>
+    </div>
+
+    <div class="opt-group">
+      <div class="opt-group-title">Assets &amp; Performance</div>
+      <div class="opt-row">
+        <label for="opt-imageFormat">Format images</label>
+        <select id="opt-imageFormat">
+          <option value="webp">WebP (fichier)</option>
+          <option value="avif">AVIF (fichier)</option>
+          <option value="png-file">PNG (fichier)</option>
+          <option value="base64-png">PNG base64 (inline)</option>
+        </select>
+      </div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-googleFonts" checked>
+        <label for="opt-googleFonts">Liens Google Fonts auto</label>
+      </div>
+      <div class="opt-row">
+        <label for="opt-svgMode">SVG</label>
+        <select id="opt-svgMode">
+          <option value="inline">Inline (dans le HTML)</option>
+          <option value="file">Fichier séparé (/assets/)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="opt-group">
+      <div class="opt-group-title">Responsive</div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-responsive">
+        <label for="opt-responsive">Breakpoints dynamiques (multi-frame)</label>
+      </div>
+      <div id="responsive-section">
+        <div class="bp-row" style="color:#888;font-size:10px;">Sélectionnez plusieurs frames, puis cliquez Générer.</div>
+      </div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-fluidTypo">
+        <label for="opt-fluidTypo">Fluid Typography (clamp)</label>
+      </div>
+    </div>
+
+    <div class="opt-group">
+      <div class="opt-group-title">Interactivité</div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-externalLinks" checked>
+        <label for="opt-externalLinks">Liens externes (prototype → &lt;a&gt;)</label>
+      </div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-keyframeAnim">
+        <label for="opt-keyframeAnim">Animations @keyframes (Smart Animate)</label>
+      </div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-extraTriggers">
+        <label for="opt-extraTriggers">Triggers supplémentaires (Drag, Press, Delay)</label>
+      </div>
+    </div>
+
+    <div class="opt-group">
+      <div class="opt-group-title">Accessibilité</div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-ariaRoles" checked>
+        <label for="opt-ariaRoles">Rôles ARIA automatiques</label>
+      </div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-altText" checked>
+        <label for="opt-altText">Textes alternatifs (alt) auto</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- CODE PANEL -->
+  <div id="panel-code" class="tab-panel">
+    <div class="code-tabs">
+      <div class="code-tab active" data-codetab="html">HTML</div>
+      <div class="code-tab" data-codetab="css">CSS</div>
+      <div class="code-tab" data-codetab="js">JS</div>
+    </div>
+    <div class="code-content" id="code-html-panel">
+      <pre><code class="language-markup" id="code-html">Cliquez sur Générer pour voir le code.</code></pre>
+    </div>
+    <div class="code-content" id="code-css-panel" style="display:none;">
+      <pre><code class="language-css" id="code-css"></code></pre>
+    </div>
+    <div class="code-content" id="code-js-panel" style="display:none;">
+      <pre><code class="language-javascript" id="code-js"></code></pre>
+    </div>
+  </div>
+
+  <!-- DEBUG PANEL -->
+  <div id="panel-debug" class="tab-panel">
     <pre id="debug-output">Sélectionnez une frame et cliquez sur Debug pour voir ses propriétés brutes.</pre>
   </div>
 
+  <!-- Status bar -->
+  <div class="status-bar" id="status-bar">Prêt</div>
+
   <script>
-    document.getElementById('export-zip').onclick = () => {
-      document.getElementById('error').style.display = 'none';
-      document.getElementById('debug-output').innerText = 'Génération du ZIP en cours...';
-      parent.postMessage({ pluginMessage: { type: 'generate' } }, '*');
-    };
+    /* ───── State ───── */
+    let lastGenerated = null;
 
-    document.getElementById('debug-btn').onclick = () => {
-      document.getElementById('error').style.display = 'none';
-      document.getElementById('debug-output').innerText = 'Extraction des données...';
+    /* ───── Helpers ───── */
+    function getOptions() {
+      return {
+        cleanCode:       document.getElementById('opt-cleanCode').checked,
+        designTokens:    document.getElementById('opt-designTokens').checked,
+        semanticHtml:    document.getElementById('opt-semanticHtml').checked,
+        cssGrid:         document.getElementById('opt-cssGrid').checked,
+        imageFormat:     document.getElementById('opt-imageFormat').value,
+        googleFonts:     document.getElementById('opt-googleFonts').checked,
+        svgMode:         document.getElementById('opt-svgMode').value,
+        responsive:      document.getElementById('opt-responsive').checked,
+        fluidTypo:       document.getElementById('opt-fluidTypo').checked,
+        externalLinks:   document.getElementById('opt-externalLinks').checked,
+        keyframeAnim:    document.getElementById('opt-keyframeAnim').checked,
+        extraTriggers:   document.getElementById('opt-extraTriggers').checked,
+        ariaRoles:       document.getElementById('opt-ariaRoles').checked,
+        altText:         document.getElementById('opt-altText').checked,
+      };
+    }
+
+    function setStatus(text) {
+      document.getElementById('status-bar').textContent = text;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-bar');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById('error-bar').style.display = 'none';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function highlightCode(code, lang) {
+      if (window.Prism && Prism.languages[lang]) {
+        return Prism.highlight(code, Prism.languages[lang], lang);
+      }
+      return escapeHtml(code);
+    }
+
+    function updateCodePanels(html, css, js) {
+      document.getElementById('code-html').innerHTML = highlightCode(html || '', 'markup');
+      document.getElementById('code-css').innerHTML  = highlightCode(css || '', 'css');
+      document.getElementById('code-js').innerHTML   = highlightCode(js || '', 'javascript');
+    }
+
+    /* ───── Tabs ───── */
+    document.querySelectorAll('.tabs .tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.code-tabs .code-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.code-tabs .code-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.code-content').forEach(p => p.style.display = 'none');
+        tab.classList.add('active');
+        document.getElementById('code-' + tab.dataset.codetab + '-panel').style.display = 'block';
+      });
+    });
+
+    /* ───── Responsive toggle ───── */
+    document.getElementById('opt-responsive').addEventListener('change', (e) => {
+      document.getElementById('responsive-section').classList.toggle('visible', e.target.checked);
+    });
+
+    /* ───── Buttons ───── */
+    document.getElementById('btn-generate').addEventListener('click', () => {
+      hideError();
+      setStatus('Génération en cours...');
+      parent.postMessage({ pluginMessage: { type: 'generate', options: getOptions() } }, '*');
+    });
+
+    document.getElementById('btn-debug').addEventListener('click', () => {
+      hideError();
+      setStatus('Extraction des données...');
       parent.postMessage({ pluginMessage: { type: 'debug' } }, '*');
-    };
+    });
 
+    /* ───── Messages from plugin ───── */
     onmessage = (event) => {
       const msg = event.data ? event.data.pluginMessage : undefined;
       if (!msg) return;
 
       if (msg.type === 'success') {
-        document.getElementById('debug-output').innerText = 'ZIP prêt. Téléchargement en cours...';
+        lastGenerated = msg;
+        setStatus('Génération terminée — prêt à exporter');
 
-        const zip = new JSZip();
-        let scriptTag = '';
-        if (msg.js && msg.js.trim() !== '') {
-          scriptTag = '<script type="text/javascript" src="script.js" defer><' + '/script>';
-          zip.file("script.js", msg.js);
-        }
+        updateCodePanels(msg.fullHtml || msg.html, msg.css, msg.js);
 
-        const fullHtml = `
-          <!DOCTYPE html>
-          <html lang="fr">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Export Figma</title>
-            <link rel="stylesheet" href="style.css">
-            ${scriptTag}
-          </head>
-          
-          <body>
-            ${msg.html}
-          </body>
-          </html>
-        `;
+        // Auto-switch to code tab
+        document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelector('.tab[data-tab="code"]').classList.add('active');
+        document.getElementById('panel-code').classList.add('active');
 
-        zip.file("index.html", fullHtml);
-        zip.file("style.css", msg.css);
+        // Build and download ZIP
+        buildAndDownloadZip(msg);
 
-        console.log('[UI] ZIP contents prepared, calling generateAsync...');
-        const zipStart = Date.now();
-        zip.generateAsync({ type: "blob" }).then((content) => {
-          console.log(`[UI] ZIP generated in ${Date.now() - zipStart}ms`);
-          const url = URL.createObjectURL(content);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = "export_figma.zip";
-          a.click();
-          URL.revokeObjectURL(url);
-          console.log(`[UI] ZIP download triggered.`);
-        });
       } else if (msg.type === 'debug-success') {
-        document.getElementById('debug-output').innerText = JSON.stringify(msg.data, null, 2);
+        document.getElementById('debug-output').textContent = JSON.stringify(msg.data, null, 2);
+        setStatus('Debug terminé');
+        // Switch to debug tab
+        document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelector('.tab[data-tab="debug"]').classList.add('active');
+        document.getElementById('panel-debug').classList.add('active');
+
       } else if (msg.type === 'error') {
-        const errEl = document.getElementById('error');
-        errEl.innerText = msg.message;
-        errEl.style.display = 'block';
-        document.getElementById('debug-output').innerText = '';
+        showError(msg.message);
+        setStatus('Erreur');
+
+      } else if (msg.type === 'frames-list') {
+        renderBreakpointList(msg.frames);
       }
     };
+
+    /* ───── Breakpoints list ───── */
+    function renderBreakpointList(frames) {
+      const sec = document.getElementById('responsive-section');
+      if (!frames || frames.length === 0) {
+        sec.innerHTML = '<div class="bp-row" style="color:#888;font-size:10px;">Aucune frame sélectionnée.</div>';
+        return;
+      }
+      let html = '';
+      frames.forEach((f, i) => {
+        const defaultBp = i === 0 ? 1440 : (i === 1 ? 768 : 480);
+        html += `<div class="bp-row">
+          <span class="bp-name">${escapeHtml(f.name)}</span>
+          <input type="number" class="bp-input" data-frame-id="${f.id}" value="${Math.round(f.width) || defaultBp}" min="0" max="9999"> px
+        </div>`;
+      });
+      sec.innerHTML = html;
+    }
+
+    /* ───── ZIP builder ───── */
+    function buildAndDownloadZip(msg) {
+      const zip = new JSZip();
+      const assetsFolder = zip.folder('assets');
+
+      if (msg.imageAssets && msg.imageAssets.length > 0) {
+        msg.imageAssets.forEach(function(asset) {
+          const bytes = Uint8Array.from(atob(asset.base64), function(c) { return c.charCodeAt(0); });
+          assetsFolder.file(asset.filename, bytes);
+        });
+      }
+      if (msg.svgAssets && msg.svgAssets.length > 0) {
+        msg.svgAssets.forEach(function(asset) {
+          assetsFolder.file(asset.filename, asset.content);
+        });
+      }
+
+      let scriptTag = '';
+      if (msg.js && msg.js.trim() !== '') {
+        scriptTag = '<script type="text/javascript" src="script.js" defer><' + '/script>';
+        zip.file('script.js', msg.js);
+      }
+      const fontsLink = msg.fontsLink || '';
+
+      const fullHtml = '<!DOCTYPE html>\n<html lang="fr">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Export Figma</title>\n' + (fontsLink ? '  ' + fontsLink + '\n' : '') + '  <link rel="stylesheet" href="style.css">\n' + (scriptTag ? '  ' + scriptTag + '\n' : '') + '</head>\n<body>\n' + msg.html + '\n</body>\n</html>';
+      zip.file('index.html', fullHtml);
+
+      let cssContent = '';
+      if (msg.tokensCSS) cssContent += msg.tokensCSS + '\n\n';
+      cssContent += msg.css || '';
+      zip.file('style.css', cssContent);
+
+      setStatus('Création du ZIP...');
+      zip.generateAsync({ type: 'blob' }).then(function(content) {
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'export_figma.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus('ZIP téléchargé ✓');
+      });
+    }
   </script>
 </body>
 

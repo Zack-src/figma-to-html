@@ -9,6 +9,6 @@
   "editorType": ["figma"],
   "ui": "ui.html",
   "networkAccess": {
-    "allowedDomains": ["https://cdnjs.cloudflare.com"]
+    "allowedDomains": ["https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"]
   }
 }

@@ -27,6 +27,18 @@ module.exports = tseslint.config(
     },
   },
   {
+    files: ['src/**/*.js'],
+    languageOptions: {
+      globals: {
+        figma: 'readonly',
+        __html__: 'readonly',
+        console: 'readonly',
+        TextDecoder: 'readonly',
+        setTimeout: 'readonly',
+      },
+    },
+  },
+  {
     ignores: ['code.js', 'dist', 'eslint.config.js'],
   },
 )
