@@ -1,5 +1,5 @@
 /**
- * Color & naming utility functions.
+ * Color, naming, semantic, accessibility, and CSS mapping utilities.
  */
 
 // ── Color conversion ──
@@ -10,7 +10,7 @@ export function rgbaToCss(color, opacity = 1) {
   const b = Math.round(color.b * 255);
   const a = ('a' in color ? color.a : 1) * opacity;
   if (a >= 1) return `rgb(${r}, ${g}, ${b})`;
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
+  return `rgba(${r}, ${g}, ${b}, ${parseFloat(a.toFixed(3))})`;
 }
 
 export function rgbaToHex(color) {
@@ -20,7 +20,7 @@ export function rgbaToHex(color) {
   return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
 }
 
-// ── Class naming ──
+// ── Class naming (#5 — BEM with parent context) ──
 
 export function sanitizeName(name) {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'element';
@@ -39,16 +39,22 @@ function getBemClassName(node, context) {
   let base = sanitizeName(node.name);
   if (!base || /^[0-9]/.test(base)) base = 'element';
 
-  const key = base;
-  if (!context.classNameCounters.has(key)) {
-    context.classNameCounters.set(key, 0);
-    context.classNameMap.set(node.id, base);
-    return base;
+  // Build BEM block__element from parent context
+  let parentBase = null;
+  if (node.parent && node.parent.type !== 'PAGE' && node.parent.type !== 'DOCUMENT') {
+    parentBase = context.classNameMap.get(node.parent.id);
   }
-  const count = context.classNameCounters.get(key) + 1;
-  context.classNameCounters.set(key, count);
-  const uniqueName = `${base}--${count}`;
-  context.classNameMap.set(node.id, uniqueName);
+  const fullKey = parentBase ? parentBase + '__' + base : base;
+
+  if (!context.classNameCounters.has(fullKey)) {
+    context.classNameCounters.set(fullKey, 0);
+    context.classNameMap.set(node.id, fullKey);
+    return fullKey;
+  }
+  const count = context.classNameCounters.get(fullKey) + 1;
+  context.classNameCounters.set(fullKey, count);
+  const uniqueName = fullKey + '--' + count;
+  context.classNameMap.set(node.id, fullKey);
   return uniqueName;
 }
 
@@ -63,6 +69,10 @@ const SEMANTIC_MAP = {
   'article': 'article',
   'aside': 'aside', 'sidebar': 'aside',
   'button': 'button', 'btn': 'button', 'bouton': 'button', 'cta': 'button',
+  'input': 'input', 'champ': 'input', 'field': 'input', 'textbox': 'input',
+  'textarea': 'textarea',
+  'ul': 'ul', 'ol': 'ol', 'list': 'ul', 'liste': 'ul',
+  'li': 'li', 'item': 'li', 'list-item': 'li',
 };
 
 export function getSemanticTag(node, context) {
@@ -139,6 +149,60 @@ export function getAlign(align) {
   }
 }
 
+// ── #12 Letter spacing ──
+
+export function mapLetterSpacing(node) {
+  if (!('letterSpacing' in node) || node.letterSpacing === figma.mixed) return null;
+  const ls = node.letterSpacing;
+  if (ls.unit === 'PIXELS' && ls.value !== 0) return `letter-spacing: ${ls.value}px;`;
+  if (ls.unit === 'PERCENT' && ls.value !== 0) return `letter-spacing: ${(ls.value / 100).toFixed(3)}em;`;
+  return null;
+}
+
+// ── #12 Text decoration ──
+
+export function mapTextDecoration(node) {
+  if (!('textDecoration' in node) || node.textDecoration === figma.mixed) return null;
+  switch (node.textDecoration) {
+    case 'UNDERLINE': return 'text-decoration: underline;';
+    case 'STRIKETHROUGH': return 'text-decoration: line-through;';
+    default: return null;
+  }
+}
+
+// ── #13 Text transform ──
+
+export function mapTextCase(node) {
+  if (!('textCase' in node) || node.textCase === figma.mixed) return null;
+  switch (node.textCase) {
+    case 'UPPER': return 'text-transform: uppercase;';
+    case 'LOWER': return 'text-transform: lowercase;';
+    case 'TITLE': return 'text-transform: capitalize;';
+    default: return null;
+  }
+}
+
+// ── #14 Rotation (check both .rotation and relativeTransform matrix) ──
+
+export function getRotationCss(node) {
+  // First try the explicit rotation property
+  if ('rotation' in node && node.rotation !== 0) {
+    return 'transform: rotate(' + (-node.rotation) + 'deg);';
+  }
+  // Fallback: extract rotation from relativeTransform matrix
+  // relativeTransform is [[cos, -sin, tx], [sin, cos, ty]]
+  if ('relativeTransform' in node) {
+    try {
+      var m = node.relativeTransform;
+      var angle = Math.atan2(m[1][0], m[0][0]) * (180 / Math.PI);
+      if (Math.abs(angle) > 0.1) {
+        return 'transform: rotate(' + angle.toFixed(2) + 'deg);';
+      }
+    } catch (_e) { /* ignore */ }
+  }
+  return null;
+}
+
 // ── Layout sizing ──
 
 export function applySizingRules(node, parentLayoutMode, cssRules) {
@@ -205,11 +269,51 @@ export function isExportableAsSvg(node) {
   return false;
 }
 
-// ── Fluid typography ──
+// ── #20 Fluid typography (viewport-based slope 320px–1440px) ──
 
 export function fluidFontSize(sizePx) {
-  const minSize = Math.max(12, Math.round(sizePx * 0.7));
+  const minVw = 320;
+  const maxVw = 1440;
+  const minSize = Math.max(12, Math.round(sizePx * 0.65));
   const maxSize = sizePx;
-  const preferred = (sizePx / 16).toFixed(3);
-  return `clamp(${minSize}px, ${preferred}rem + 0.5vw, ${maxSize}px)`;
+  const slope = (maxSize - minSize) / (maxVw - minVw);
+  const intercept = minSize - slope * minVw;
+  const preferred = (slope * 100).toFixed(4) + 'vw + ' + intercept.toFixed(2) + 'px';
+  return `clamp(${minSize}px, ${preferred}, ${maxSize}px)`;
+}
+
+// ── #2 Helper: check if node needs position:relative ──
+
+export function needsPositionRelative(node) {
+  // Explicit absolute children
+  if ('children' in node && node.children) {
+    for (const child of node.children) {
+      if (child.layoutPositioning === 'ABSOLUTE') return true;
+    }
+  }
+  // Non-auto-layout frames with children → children will be positioned absolute
+  if ('children' in node && node.children && node.children.length > 0) {
+    if (!('layoutMode' in node) || node.layoutMode === 'NONE') {
+      if (node.type !== 'PAGE' && node.type !== 'DOCUMENT') return true;
+    }
+  }
+  return false;
+}
+
+// ── #21 Pure image node detection ──
+
+export function isPureImageNode(node) {
+  if ('children' in node && node.children && node.children.length > 0) return false;
+  if (!('fills' in node) || !Array.isArray(node.fills)) return false;
+  const visible = node.fills.filter(f => f.visible !== false);
+  return visible.length === 1 && visible[0].type === 'IMAGE' && visible[0].imageHash;
+}
+
+// ── #22 Text truncation detection ──
+
+export function getTextOverflowCss(node) {
+  if ('textTruncation' in node && node.textTruncation === 'ENDING') {
+    return ['overflow: hidden;', 'text-overflow: ellipsis;', 'white-space: nowrap;'];
+  }
+  return [];
 }

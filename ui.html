@@ -131,6 +131,17 @@
     }
     .code-tab:hover { color: #ccc; }
     .code-tab.active { color: #fff; border-bottom-color: #569cd6; }
+    .copy-btn {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid #444;
+      color: #888;
+      border-radius: 3px;
+      padding: 2px 8px;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { color: #fff; border-color: #888; }
     .code-content {
       flex: 1;
       overflow: auto;
@@ -318,6 +329,14 @@
         <label for="opt-altText">Textes alternatifs (alt) auto</label>
       </div>
     </div>
+
+    <div class="opt-group">
+      <div class="opt-group-title">Export</div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-minifyCss">
+        <label for="opt-minifyCss">Minifier le CSS</label>
+      </div>
+    </div>
   </div>
 
   <!-- CODE PANEL -->
@@ -326,6 +345,7 @@
       <div class="code-tab active" data-codetab="html">HTML</div>
       <div class="code-tab" data-codetab="css">CSS</div>
       <div class="code-tab" data-codetab="js">JS</div>
+      <button class="copy-btn" id="copy-btn" title="Copier">📋</button>
     </div>
     <div class="code-content" id="code-html-panel">
       <pre><code class="language-markup" id="code-html">Cliquez sur Générer pour voir le code.</code></pre>
@@ -367,6 +387,7 @@
         extraTriggers:   document.getElementById('opt-extraTriggers').checked,
         ariaRoles:       document.getElementById('opt-ariaRoles').checked,
         altText:         document.getElementById('opt-altText').checked,
+        minifyCss:       document.getElementById('opt-minifyCss').checked,
       };
     }
 
@@ -420,6 +441,23 @@
       });
     });
 
+    /* ───── #30 Copy to clipboard ───── */
+    var currentCodeTab = 'html';
+    document.querySelectorAll('.code-tabs .code-tab').forEach(function(t) {
+      t.addEventListener('click', function() { if (t.dataset.codetab) currentCodeTab = t.dataset.codetab; });
+    });
+    document.getElementById('copy-btn').addEventListener('click', function() {
+      var el = document.getElementById('code-' + currentCodeTab);
+      if (el) {
+        var text = el.textContent || '';
+        navigator.clipboard.writeText(text).then(function() {
+          setStatus('Copié !');
+        }).catch(function() {
+          setStatus('Erreur de copie');
+        });
+      }
+    });
+
     /* ───── Responsive toggle ───── */
     document.getElementById('opt-responsive').addEventListener('change', (e) => {
       document.getElementById('responsive-section').classList.toggle('visible', e.target.checked);
@@ -466,6 +504,9 @@
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
         document.querySelector('.tab[data-tab="debug"]').classList.add('active');
         document.getElementById('panel-debug').classList.add('active');
+
+      } else if (msg.type === 'progress') {
+        setStatus('Génération: ' + msg.current + '/' + msg.total + ' nodes...');
 
       } else if (msg.type === 'error') {
         showError(msg.message);

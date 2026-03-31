@@ -17,6 +17,7 @@ export const DEFAULT_OPTIONS = {
   extraTriggers: false,
   ariaRoles: true,
   altText: true,
+  minifyCss: false,
 };
 
 /**
@@ -27,6 +28,7 @@ export function createContext(opts) {
     js: '',
     opts,
     fonts: new Set(),
+    fontWeights: new Map(),
     colors: new Map(),
     textStyles: new Map(),
     imageAssets: [],
@@ -40,5 +42,7 @@ export function createContext(opts) {
     svgCache: new Map(),
     imageCache: new Map(),
     componentRegistry: new Map(),
+    nodeCount: 0,
+    processedCount: 0,
   };
 }

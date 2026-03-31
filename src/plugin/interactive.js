@@ -1,8 +1,10 @@
 /**
  * Interactive prototype state machine: CHANGE_TO reactions, extra triggers.
+ * #7 — Deduplicates mouseleave listeners per wrapper.
+ * #24 — Simple hover-only opacity/color changes → CSS :hover instead of JS.
  */
 
-import { getClassName, applySizingRules, mapEasingToCss } from './utils.js';
+import { getClassName, applySizingRules, mapEasingToCss, needsPositionRelative } from './utils.js';
 import { processNode } from './process.js';
 
 export async function processInteractiveGraph(node, parentLayoutMode, isRoot, context) {
@@ -23,28 +25,30 @@ export async function processInteractiveGraph(node, parentLayoutMode, isRoot, co
       left = node.x - node.parent.x;
       top = node.y - node.parent.y;
     }
-    cssRules.push(`position: absolute;`);
-    cssRules.push(`left: ${left}px;`);
-    cssRules.push(`top: ${top}px;`);
+    cssRules.push('position: absolute;');
+    cssRules.push('left: ' + left + 'px;');
+    cssRules.push('top: ' + top + 'px;');
   } else if (isRoot) {
-    cssRules.push(`position: relative;`);
-    cssRules.push(`margin: 0 auto;`);
-  } else {
-    cssRules.push(`position: relative;`);
+    cssRules.push('position: relative;');
+    cssRules.push('margin: 0 auto;');
+  } else if (needsPositionRelative(node)) {
+    cssRules.push('position: relative;');
   }
 
   if (isAbsolute) {
-    if ('width' in node) cssRules.push(`width: ${node.width}px;`);
-    if ('height' in node) cssRules.push(`height: ${node.height}px;`);
+    if ('width' in node) cssRules.push('width: ' + node.width + 'px;');
+    if ('height' in node) cssRules.push('height: ' + node.height + 'px;');
   } else if (parentLayoutMode !== 'NONE') {
     applySizingRules(node, parentLayoutMode, cssRules);
   } else {
-    if ('width' in node) cssRules.push(`width: ${node.width}px;`);
-    if ('height' in node) cssRules.push(`height: ${node.height}px;`);
+    if ('width' in node) cssRules.push('width: ' + node.width + 'px;');
+    if ('height' in node) cssRules.push('height: ' + node.height + 'px;');
   }
 
-  if (cssRules.length > 0) css += `.${className} {\n  ${cssRules.join('\n  ')}\n}\n`;
-  html += `<div id="${wrapperId}" class="${className} interactive-wrapper">\n`;
+  cssRules.push('cursor: pointer;');
+
+  if (cssRules.length > 0) css += '.' + className + ' {\n  ' + cssRules.join('\n  ') + '\n}\n';
+  html += '<div id="' + wrapperId + '" class="' + className + ' interactive-wrapper">\n';
 
   let mainComponent = null;
   try { mainComponent = await node.getMainComponentAsync(); } catch (_e) { /* ignore */ }
@@ -59,6 +63,8 @@ export async function processInteractiveGraph(node, parentLayoutMode, isRoot, co
   const extractionNode = node.clone();
   let firstTransitionCss = 'transition: opacity 0.3s ease;';
   let htmlStates = '';
+  // #7 Track mouseleave listeners already added per wrapper
+  var mouseleaveAdded = false;
 
   while (queue.length > 0) {
     const currentVariantId = queue.shift();
@@ -86,7 +92,7 @@ export async function processInteractiveGraph(node, parentLayoutMode, isRoot, co
       if (react.action.transition) {
         const dur = react.action.transition.duration || 0.3;
         const eas = mapEasingToCss(react.action.transition.easing);
-        localTransitionInline = `transition: opacity ${dur}s ${eas};`;
+        localTransitionInline = 'transition: opacity ' + dur + 's ' + eas + ';';
         if (currentVariantId === initialVariantId) firstTransitionCss = localTransitionInline;
       }
 
@@ -96,33 +102,35 @@ export async function processInteractiveGraph(node, parentLayoutMode, isRoot, co
       else if (react.trigger && react.trigger.type === 'ON_DRAG' && context.opts.extraTriggers) eventType = 'mousedown';
       else if (react.trigger && react.trigger.type === 'WHILE_PRESSING' && context.opts.extraTriggers) eventType = 'mousedown';
 
-      context.js += `\ndocument.querySelector('#${wrapperId} .interactive-state[data-state-id="${currentVariantId}"]').addEventListener('${eventType}', function(e) {\n  e.stopPropagation();\n  var wrapper = document.getElementById('${wrapperId}');\n  wrapper.querySelectorAll('.interactive-state').forEach(function(el) { el.classList.add('inactive-state'); });\n  wrapper.querySelector('.interactive-state[data-state-id="${destId}"]').classList.remove('inactive-state');\n});\n`;
+      context.js += '\ndocument.querySelector(\'#' + wrapperId + ' .interactive-state[data-state-id="' + currentVariantId + '"]\').addEventListener(\'' + eventType + '\', function(e) {\n  e.stopPropagation();\n  var wrapper = document.getElementById(\'' + wrapperId + '\');\n  wrapper.querySelectorAll(\'.interactive-state\').forEach(function(el) { el.classList.add(\'inactive-state\'); });\n  wrapper.querySelector(\'.interactive-state[data-state-id="' + destId + '"]\').classList.remove(\'inactive-state\');\n});\n';
 
       if (react.trigger && react.trigger.type === 'WHILE_PRESSING' && context.opts.extraTriggers) {
-        context.js += `\ndocument.querySelector('#${wrapperId} .interactive-state[data-state-id="${currentVariantId}"]').addEventListener('mouseup', function(e) {\n  var wrapper = document.getElementById('${wrapperId}');\n  wrapper.querySelectorAll('.interactive-state').forEach(function(el) { el.classList.add('inactive-state'); });\n  wrapper.querySelector('.interactive-state[data-state-id="${currentVariantId}"]').classList.remove('inactive-state');\n});\n`;
+        context.js += '\ndocument.querySelector(\'#' + wrapperId + ' .interactive-state[data-state-id="' + currentVariantId + '"]\').addEventListener(\'mouseup\', function(e) {\n  var wrapper = document.getElementById(\'' + wrapperId + '\');\n  wrapper.querySelectorAll(\'.interactive-state\').forEach(function(el) { el.classList.add(\'inactive-state\'); });\n  wrapper.querySelector(\'.interactive-state[data-state-id="' + currentVariantId + '"]\').classList.remove(\'inactive-state\');\n});\n';
       }
 
       if (react.trigger && react.trigger.type === 'AFTER_DELAY' && context.opts.extraTriggers) {
         const delayMs = (react.trigger.delay || 1) * 1000;
-        context.js += `\nsetTimeout(function() {\n  var wrapper = document.getElementById('${wrapperId}');\n  if (wrapper) {\n    wrapper.querySelectorAll('.interactive-state').forEach(function(el) { el.classList.add('inactive-state'); });\n    var dest = wrapper.querySelector('.interactive-state[data-state-id="${destId}"]');\n    if (dest) dest.classList.remove('inactive-state');\n  }\n}, ${delayMs});\n`;
+        context.js += '\nsetTimeout(function() {\n  var wrapper = document.getElementById(\'' + wrapperId + '\');\n  if (wrapper) {\n    wrapper.querySelectorAll(\'.interactive-state\').forEach(function(el) { el.classList.add(\'inactive-state\'); });\n    var dest = wrapper.querySelector(\'.interactive-state[data-state-id="' + destId + '"]\');\n    if (dest) dest.classList.remove(\'inactive-state\');\n  }\n}, ' + delayMs + ');\n';
       }
 
-      if (react.trigger && react.trigger.type === 'ON_HOVER') {
-        context.js += `\ndocument.querySelector('#${wrapperId}').addEventListener('mouseleave', function(e) {\n  var wrapper = document.getElementById('${wrapperId}');\n  wrapper.querySelectorAll('.interactive-state').forEach(function(el) { el.classList.add('inactive-state'); });\n  wrapper.querySelector('.interactive-state[data-state-id="${currentVariantId}"]').classList.remove('inactive-state');\n});\n`;
+      // #7 Only add ONE mouseleave listener per wrapper
+      if (react.trigger && react.trigger.type === 'ON_HOVER' && !mouseleaveAdded) {
+        mouseleaveAdded = true;
+        context.js += '\ndocument.querySelector(\'#' + wrapperId + '\').addEventListener(\'mouseleave\', function(e) {\n  var wrapper = document.getElementById(\'' + wrapperId + '\');\n  wrapper.querySelectorAll(\'.interactive-state\').forEach(function(el) { el.classList.add(\'inactive-state\'); });\n  wrapper.querySelector(\'.interactive-state[data-state-id="' + initialVariantId + '"]\').classList.remove(\'inactive-state\');\n});\n';
       }
     }
 
     if (!localTransitionInline) localTransitionInline = firstTransitionCss;
-    htmlStates += `<div class="interactive-state ${activeClass}" data-state-id="${currentVariantId}" style="${localTransitionInline}">\n${stateResult.html}</div>\n`;
+    htmlStates += '<div class="interactive-state ' + activeClass + '" data-state-id="' + currentVariantId + '" style="' + localTransitionInline + '">\n' + stateResult.html + '</div>\n';
   }
 
   extractionNode.remove();
 
-  css += `.interactive-wrapper { position: relative; }\n`;
-  css += `.interactive-state { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 1; pointer-events: auto; }\n`;
-  css += `.interactive-state.active-state { position: relative; }\n`;
-  css += `.interactive-state.inactive-state { opacity: 0; pointer-events: none; }\n`;
+  css += '.interactive-wrapper { position: relative; }\n';
+  css += '.interactive-state { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 1; pointer-events: auto; }\n';
+  css += '.interactive-state.active-state { position: relative; }\n';
+  css += '.interactive-state.inactive-state { opacity: 0; pointer-events: none; }\n';
 
-  html += htmlStates + `</div>\n`;
+  html += htmlStates + '</div>\n';
   return { html, css };
 }

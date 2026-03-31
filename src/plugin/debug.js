@@ -16,7 +16,7 @@ export async function extractNodeData(node) {
       'fontName', 'fontSize', 'characters',
       'textAlignHorizontal', 'textAlignVertical', 'lineHeight',
       'componentProperties', 'variantProperties',
-      'clipsContent', 'overflowDirection', 'reactions',
+      'clipsContent', 'overflowDirection', 'reactions', 'relativeTransform',
     ];
     const obj = {};
 
