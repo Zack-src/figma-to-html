@@ -43,28 +43,38 @@ export function collectTextTokens(family, size, weight, context) {
 }
 
 export function generateDesignTokens(context) {
-  if (context.colors.size === 0 && context.textFamilies.size === 0) return '';
+  if (context.colors.size === 0 && context.textFamilies.size === 0 && context.textSizes.size === 0 && context.textWeights.size === 0) return '';
   let css = ':root {\n';
   
-  // ── Colors ──
-  for (const [, val] of context.colors) {
+  // ── Colors (Sorted by Name) ──
+  const colorSorted = Array.from(context.colors.values()).sort((a, b) => a.name.localeCompare(b.name));
+  for (const val of colorSorted) {
     css += '  ' + val.name + ': ' + val.value + ';\n';
   }
   
-  // ── Typography Categorized ──
-  if (context.textFamilies.size > 0) css += '\n  /* Font Families */\n';
-  for (const [val, name] of context.textFamilies) {
-    css += '  ' + name + ': \'' + val + '\', sans-serif;\n';
+  // ── Typography Categorized & Sorted ──
+  if (context.textFamilies.size > 0) {
+    css += '\n  /* Font Families */\n';
+    const familiesGroup = Array.from(context.textFamilies.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    for (const [val, name] of familiesGroup) {
+      css += '  ' + name + ': \'' + val + '\', sans-serif;\n';
+    }
   }
   
-  if (context.textSizes.size > 0) css += '\n  /* Font Sizes */\n';
-  for (const [val, name] of context.textSizes) {
-    css += '  ' + name + ': ' + val + 'px;\n';
+  if (context.textSizes.size > 0) {
+    css += '\n  /* Font Sizes */\n';
+    const sizesGroup = Array.from(context.textSizes.entries()).sort((a, b) => a[0] - b[0]);
+    for (const [val, name] of sizesGroup) {
+      css += '  ' + name + ': ' + val + 'px;\n';
+    }
   }
   
-  if (context.textWeights.size > 0) css += '\n  /* Font Weights */\n';
-  for (const [val, name] of context.textWeights) {
-    css += '  ' + name + ': ' + val + ';\n';
+  if (context.textWeights.size > 0) {
+    css += '\n  /* Font Weights */\n';
+    const weightsGroup = Array.from(context.textWeights.entries()).sort((a, b) => a[0] - b[0]);
+    for (const [val, name] of weightsGroup) {
+      css += '  ' + name + ': ' + val + ';\n';
+    }
   }
   
   css += '}\n';
@@ -187,6 +197,4 @@ export function minifyCss(cssString) {
     .trim();
 }
 
-// ── Base CSS reset ──
-
-export const BASE_CSS = '*{box-sizing:border-box;}\nbody{margin:0;padding:20px;background-color:#f5f5f5;display:flex;justify-content:center;align-items:flex-start;}\ndiv,p{margin:0;}\nsvg{display:block;width:100%;height:100%;}\n';
+export const BASE_CSS = '*{box-sizing:border-box;}\nbody{margin:0;padding:20px;background-color:#f5f5f5;display:flex;justify-content:center;align-items:flex-start;}\ndiv,p{margin:0;}\nsvg{display:block;width:100%;height:100%;}\nbutton,input,textarea,select{background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;outline:none;}\n';

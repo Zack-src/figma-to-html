@@ -19,12 +19,22 @@ function getBemClassName(node, context) {
   let base = sanitizeName(node.name);
   if (!base || /^[0-9]/.test(base)) base = 'element';
 
-  // Build BEM block__element from parent context
-  let parentBase = null;
+  let parentKey = null;
   if (node.parent && node.parent.type !== 'PAGE' && node.parent.type !== 'DOCUMENT') {
-    parentBase = context.classNameMap.get(node.parent.id);
+    parentKey = context.classNameMap.get(node.parent.id);
   }
-  const fullKey = parentBase ? parentBase + '__' + base : base;
+
+  // Cap nesting depth to Block__Element only (BEM style) 
+  // or allow one more level if it is a modifier, but here we simplify:
+  // We only keep the last parent's base name as the block.
+  let fullKey;
+  if (parentKey) {
+    const parts = parentKey.split('__');
+    const lastBlock = parts[parts.length - 1];
+    fullKey = lastBlock + '__' + base;
+  } else {
+    fullKey = base;
+  }
 
   if (!context.classNameCounters.has(fullKey)) {
     context.classNameCounters.set(fullKey, 0);
@@ -34,6 +44,6 @@ function getBemClassName(node, context) {
   const count = context.classNameCounters.get(fullKey) + 1;
   context.classNameCounters.set(fullKey, count);
   const uniqueName = fullKey + '--' + count;
-  context.classNameMap.set(node.id, fullKey);
+  context.classNameMap.set(node.id, uniqueName);
   return uniqueName;
 }

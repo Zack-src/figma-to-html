@@ -29,18 +29,25 @@ export function processLayout(node, cssRules, context, isText) {
         cssRules.push('flex-direction: ' + (node.layoutMode === 'HORIZONTAL' ? 'row' : 'column') + ';');
         if (node.layoutWrap === 'WRAP') cssRules.push('flex-wrap: wrap;');
 
-        var hasCounter = 'counterAxisSpacing' in node && node.counterAxisSpacing !== figma.mixed && node.counterAxisSpacing > 0;
-        var mainGap = (node.itemSpacing !== figma.mixed && node.itemSpacing > 0) ? node.itemSpacing : 0;
-        if (hasCounter && node.counterAxisSpacing !== mainGap) {
-          if (node.layoutMode === 'HORIZONTAL') {
-            if (mainGap > 0) cssRules.push('column-gap: ' + mainGap + 'px;');
-            cssRules.push('row-gap: ' + node.counterAxisSpacing + 'px;');
+        const hasCounter = 'counterAxisSpacing' in node && node.counterAxisSpacing !== figma.mixed && node.counterAxisSpacing > 0;
+        const mainGap = (node.itemSpacing !== figma.mixed && node.itemSpacing > 0) ? node.itemSpacing : 0;
+        const counterGap = hasCounter ? node.counterAxisSpacing : 0;
+
+        if (mainGap > 0 && counterGap > 0) {
+          if (mainGap === counterGap) {
+            cssRules.push('gap: ' + mainGap + 'px;');
           } else {
-            if (mainGap > 0) cssRules.push('row-gap: ' + mainGap + 'px;');
-            cssRules.push('column-gap: ' + node.counterAxisSpacing + 'px;');
+            // Flex direction aware shorthand
+            if (node.layoutMode === 'HORIZONTAL') {
+              cssRules.push('gap: ' + counterGap + 'px ' + mainGap + 'px;');
+            } else {
+              cssRules.push('gap: ' + mainGap + 'px ' + counterGap + 'px;');
+            }
           }
         } else if (mainGap > 0) {
           cssRules.push('gap: ' + mainGap + 'px;');
+        } else if (counterGap > 0) {
+          cssRules.push('gap: ' + counterGap + 'px;');
         }
       }
 

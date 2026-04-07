@@ -72,6 +72,42 @@ figma.ui.onmessage = async (msg) => {
       var componentDataJs = buildComponentDataJs(context.componentRegistry);
       if (componentDataJs) context.js += componentDataJs;
 
+      const globalInitJs = '\ndocument.querySelectorAll(".interactive-wrapper").forEach(function(wrapper) {\n' +
+        '  if (wrapper.getAttribute("data-hover-mouseleave") === "true") {\n' +
+        '    var initial = wrapper.getAttribute("data-initial-state");\n' +
+        '    wrapper.addEventListener("mouseleave", function() {\n' +
+        '      wrapper.querySelectorAll(".interactive-state").forEach(function(el) { el.classList.add("inactive-state"); });\n' +
+        '      var dest = wrapper.querySelector(".interactive-state[data-state-id=\\"" + initial + "\\"]");\n' +
+        '      if (dest) dest.classList.remove("inactive-state");\n' +
+        '    });\n' +
+        '  }\n' +
+        '  wrapper.querySelectorAll(".interactive-state").forEach(function(state) {\n' +
+        '    var raw = state.getAttribute("data-interactions");\n' +
+        '    if (!raw) return;\n' +
+        '    var interactions = JSON.parse(raw);\n' +
+        '    interactions.forEach(function(int) {\n' +
+        '      if (int.event === "delay") {\n' +
+        '        setTimeout(function() {\n' +
+        '          wrapper.querySelectorAll(".interactive-state").forEach(function(el) { el.classList.add("inactive-state"); });\n' +
+        '          var dest = wrapper.querySelector(".interactive-state[data-state-id=\\"" + int.dest + "\\"]");\n' +
+        '          if (dest) dest.classList.remove("inactive-state");\n' +
+        '        }, int.delay);\n' +
+        '      } else {\n' +
+        '        state.addEventListener(int.event, function(e) {\n' +
+        '          if (int.event === "click") e.stopPropagation();\n' +
+        '          wrapper.querySelectorAll(".interactive-state").forEach(function(el) { el.classList.add("inactive-state"); });\n' +
+        '          var dest = wrapper.querySelector(".interactive-state[data-state-id=\\"" + int.dest + "\\"]");\n' +
+        '          if (dest) dest.classList.remove("inactive-state");\n' +
+        '        });\n' +
+        '      }\n' +
+        '    });\n' +
+        '  });\n' +
+        '});\n';
+      
+      if (result.html.indexOf('interactive-wrapper') !== -1) {
+        context.js = globalInitJs + context.js;
+      }
+
       figma.ui.postMessage({
         type: 'success',
         html: result.html,

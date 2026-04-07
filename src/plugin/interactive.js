@@ -49,17 +49,17 @@ export async function processInteractiveGraph(node, parentLayoutMode, isRoot, co
 
   cssRules.push('cursor: pointer;');
 
-  if (cssRules.length > 0) css += '.' + className + ' {\n  ' + cssRules.join('\n  ') + '\n}\n';
-  html += '<div id="' + wrapperId + '" class="' + className + ' interactive-wrapper">\n';
-
   let mainComponent = null;
   try { mainComponent = await node.getMainComponentAsync(); } catch (_e) { /* ignore */ }
 
   if (!mainComponent || !mainComponent.parent || mainComponent.parent.type !== 'COMPONENT_SET') {
+    if (cssRules.length > 0) css += '.' + className + ' {\n  ' + cssRules.join('\n  ') + '\n}\n';
     return await processNode(node, parentLayoutMode, isRoot, context, true);
   }
 
   const initialVariantId = mainComponent.id;
+  if (cssRules.length > 0) css += '.' + className + ' {\n  ' + cssRules.join('\n  ') + '\n}\n';
+  html += '<div id="' + wrapperId + '" class="' + className + ' interactive-wrapper" data-initial-state="' + initialVariantId + '">\n';
   const visitedStates = new Set();
   const queue = [initialVariantId];
   const extractionNode = node.clone();
@@ -87,6 +87,8 @@ export async function processInteractiveGraph(node, parentLayoutMode, isRoot, co
       r => r.action && r.action.type === 'NODE' && r.action.navigation === 'CHANGE_TO'
     );
 
+    const stateInteractions = [];
+
     for (const react of reactions) {
       const destId = react.action.destinationId;
       if (!visitedStates.has(destId) && !queue.includes(destId)) queue.push(destId);
@@ -104,29 +106,32 @@ export async function processInteractiveGraph(node, parentLayoutMode, isRoot, co
       else if (react.trigger && react.trigger.type === 'ON_DRAG' && context.opts.extraTriggers) eventType = 'mousedown';
       else if (react.trigger && react.trigger.type === 'WHILE_PRESSING' && context.opts.extraTriggers) eventType = 'mousedown';
 
-      context.js += '\ndocument.querySelector(\'#' + wrapperId + ' .interactive-state[data-state-id="' + currentVariantId + '"]\').addEventListener(\'' + eventType + '\', function(e) {\n  e.stopPropagation();\n  var wrapper = document.getElementById(\'' + wrapperId + '\');\n  wrapper.querySelectorAll(\'.interactive-state\').forEach(function(el) { el.classList.add(\'inactive-state\'); });\n  wrapper.querySelector(\'.interactive-state[data-state-id="' + destId + '"]\').classList.remove(\'inactive-state\');\n});\n';
+      stateInteractions.push({ event: eventType, dest: destId });
 
       if (react.trigger && react.trigger.type === 'WHILE_PRESSING' && context.opts.extraTriggers) {
-        context.js += '\ndocument.querySelector(\'#' + wrapperId + ' .interactive-state[data-state-id="' + currentVariantId + '"]\').addEventListener(\'mouseup\', function(e) {\n  var wrapper = document.getElementById(\'' + wrapperId + '\');\n  wrapper.querySelectorAll(\'.interactive-state\').forEach(function(el) { el.classList.add(\'inactive-state\'); });\n  wrapper.querySelector(\'.interactive-state[data-state-id="' + currentVariantId + '"]\').classList.remove(\'inactive-state\');\n});\n';
+        stateInteractions.push({ event: 'mouseup', dest: currentVariantId });
       }
 
       if (react.trigger && react.trigger.type === 'AFTER_DELAY' && context.opts.extraTriggers) {
         const delayMs = (react.trigger.delay || 1) * 1000;
-        context.js += '\nsetTimeout(function() {\n  var wrapper = document.getElementById(\'' + wrapperId + '\');\n  if (wrapper) {\n    wrapper.querySelectorAll(\'.interactive-state\').forEach(function(el) { el.classList.add(\'inactive-state\'); });\n    var dest = wrapper.querySelector(\'.interactive-state[data-state-id="' + destId + '"]\');\n    if (dest) dest.classList.remove(\'inactive-state\');\n  }\n}, ' + delayMs + ');\n';
+        stateInteractions.push({ event: 'delay', dest: destId, delay: delayMs });
       }
 
-      // #7 Only add ONE mouseleave listener per wrapper
       if (react.trigger && react.trigger.type === 'ON_HOVER' && !mouseleaveAdded) {
         mouseleaveAdded = true;
-        context.js += '\ndocument.querySelector(\'#' + wrapperId + '\').addEventListener(\'mouseleave\', function(e) {\n  var wrapper = document.getElementById(\'' + wrapperId + '\');\n  wrapper.querySelectorAll(\'.interactive-state\').forEach(function(el) { el.classList.add(\'inactive-state\'); });\n  wrapper.querySelector(\'.interactive-state[data-state-id="' + initialVariantId + '"]\').classList.remove(\'inactive-state\');\n});\n';
       }
     }
 
     if (!localTransitionInline) localTransitionInline = firstTransitionCss;
-    htmlStates += '<div class="interactive-state ' + activeClass + '" data-state-id="' + currentVariantId + '" style="' + localTransitionInline + '">\n' + stateResult.html + '</div>\n';
+    const dataAttr = stateInteractions.length > 0 ? ' data-interactions=\'' + JSON.stringify(stateInteractions) + '\'' : '';
+    htmlStates += '<div class="interactive-state ' + activeClass + '" data-state-id="' + currentVariantId + '"' + dataAttr + ' style="' + localTransitionInline + '">\n' + stateResult.html + '</div>\n';
   }
 
   extractionNode.remove();
+
+  if (mouseleaveAdded) {
+    html = html.replace('data-initial-state="' + initialVariantId + '"', 'data-initial-state="' + initialVariantId + '" data-hover-mouseleave="true"');
+  }
 
   css += '.interactive-wrapper { position: relative; }\n';
   css += '.interactive-state { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 1; pointer-events: auto; }\n';

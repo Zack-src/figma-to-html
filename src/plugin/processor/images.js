@@ -1,6 +1,7 @@
 import { getAltText, getAriaAttrs } from '../lib/semantics.js';
 import { applySizingRules } from '../lib/geometry.js';
 import { isPureImageNode } from '../lib/detection.js';
+import { sanitizeName } from '../lib/naming.js';
 
 /**
  * Image processing utilities.
@@ -33,7 +34,8 @@ export async function processImageNode(node, parentLayoutMode, cssRules, context
     if (context.imageCache.has(ck)) {
       imgFn = context.imageCache.get(ck);
     } else {
-      imgFn = 'img-' + (++context.imageCounter) + '.' + ext;
+      const baseSafeName = node.name ? sanitizeName(node.name) : 'img';
+      imgFn = baseSafeName + '-' + (++context.imageCounter) + '.' + ext;
       context.imageCache.set(ck, imgFn);
       context.imageAssets.push({ filename: imgFn, base64: base64 });
     }

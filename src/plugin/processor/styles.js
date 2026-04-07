@@ -2,6 +2,7 @@ import { rgbaToCss } from '../lib/colors.js';
 import { buildGradientCss } from './gradients.js';
 import { mapScaleMode } from './images.js';
 import { collectColorToken } from '../css.js';
+import { sanitizeName } from '../lib/naming.js';
 
 /**
  * Common styles processing (fills, strokes, effects, radius, overflow).
@@ -55,7 +56,8 @@ export async function applyFills(node, className, cssRules, context, isText) {
             if (context.imageCache.has(cacheKey)) {
               imgFilename = context.imageCache.get(cacheKey);
             } else {
-              imgFilename = 'img-' + (++context.imageCounter) + '.' + ext;
+              const baseSafeName = node.name ? sanitizeName(node.name) : 'img';
+              imgFilename = baseSafeName + '-' + (++context.imageCounter) + '.' + ext;
               context.imageCache.set(cacheKey, imgFilename);
               context.imageAssets.push({ filename: imgFilename, base64: base64 });
             }
@@ -154,7 +156,7 @@ export function applyEffects(node, cssRules, isText) {
 export function applyBorderRadius(node, cssRules) {
   if ('cornerRadius' in node && node.cornerRadius !== figma.mixed && node.cornerRadius > 0) {
     cssRules.push('border-radius: ' + node.cornerRadius + 'px;');
-  } else if ('topLeftRadius' in node) {
+  } else if ('topLeftRadius' in node && (node.topLeftRadius > 0 || node.topRightRadius > 0 || node.bottomRightRadius > 0 || node.bottomLeftRadius > 0)) {
     cssRules.push('border-radius: ' + node.topLeftRadius + 'px ' + node.topRightRadius + 'px ' + node.bottomRightRadius + 'px ' + node.bottomLeftRadius + 'px;');
   }
 }

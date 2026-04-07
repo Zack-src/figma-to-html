@@ -1,6 +1,7 @@
 import { getAltText, getAriaAttrs } from '../lib/semantics.js';
 import { applySizingRules } from '../lib/geometry.js';
 import { isExportableAsSvg } from '../lib/detection.js';
+import { sanitizeName } from '../lib/naming.js';
 
 /**
  * SVG processing utilities.
@@ -37,7 +38,8 @@ export async function processSvgNode(node, parentLayoutMode, cssRules, context, 
       if (context.svgCache.has(svgString)) {
         svgFilename = context.svgCache.get(svgString);
       } else {
-        svgFilename = 'icon-' + (++context.svgCounter) + '.svg';
+        const baseSafeName = node.name ? sanitizeName(node.name) : 'icon';
+        svgFilename = baseSafeName + '-' + (++context.svgCounter) + '.svg';
         context.svgCache.set(svgString, svgFilename);
         context.svgAssets.push({ filename: svgFilename, content: svgString });
       }
