@@ -2,7 +2,7 @@
  * Responsive: multi-frame breakpoints with media queries.
  */
 
-import { processNode } from './process.js';
+import { processNode } from './processor/index.js';
 
 export async function processResponsive(frames, context) {
   const sorted = [...frames].sort((a, b) => b.width - a.width);

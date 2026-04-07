@@ -2,10 +2,10 @@
   "name": "Figma-to-HTML",
   "version": "1.0.0",
   "description": "Your Figma Plugin",
-  "main": "code.js",
+  "main": "dist/code.js",
   "scripts": {
-    "build": "esbuild src/plugin/main.js --bundle --outfile=code.js --format=iife --target=es2020",
-    "watch": "esbuild src/plugin/main.js --bundle --outfile=code.js --format=iife --target=es2020 --watch",
+    "build": "esbuild src/plugin/main.js --bundle --outfile=dist/code.js --format=iife --target=es2020",
+    "watch": "esbuild src/plugin/main.js --bundle --outfile=dist/code.js --format=iife --target=es2020 --watch",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix"
   },

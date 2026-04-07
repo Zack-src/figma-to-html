@@ -5,7 +5,7 @@
 import { DEFAULT_OPTIONS, createContext } from './config.js';
 import { generateDesignTokens, buildGoogleFontsLink, deduplicateCss, minifyCss, BASE_CSS } from './css.js';
 import { buildComponentDataJs } from './components.js';
-import { processNode } from './process.js';
+import { processNode } from './processor/index.js';
 import { processResponsive } from './responsive.js';
 import { extractNodeData } from './debug.js';
 

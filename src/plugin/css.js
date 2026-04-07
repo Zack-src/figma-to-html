@@ -2,7 +2,8 @@
  * CSS generation: design tokens, Google Fonts, Grid detection, deduplication, minification.
  */
 
-import { rgbaToCss, rgbaToHex, sanitizeName } from './utils.js';
+import { rgbaToCss, rgbaToHex } from './lib/colors.js';
+import { sanitizeName } from './lib/naming.js';
 
 // ── #6 Design Tokens (use Figma style names when available) ──
 
@@ -21,31 +22,55 @@ export function collectColorToken(color, opacity, context, styleName) {
   }
   return context.colors.get(key).name;
 }
-
-export function collectTextToken(family, size, weight, context) {
-  const key = family + '-' + size + '-' + weight;
-  if (!context.textStyles.has(key)) {
-    const idx = context.textStyles.size + 1;
-    const name = '--font-' + idx;
-    context.textStyles.set(key, { name, family, size, weight });
+export function collectTextTokens(family, size, weight, context) {
+  if (!context.textFamilies.has(family)) {
+    const name = '--font-family-' + sanitizeName(family);
+    context.textFamilies.set(family, name);
   }
-  return context.textStyles.get(key).name;
+  if (!context.textSizes.has(size)) {
+    const name = '--font-size-' + Math.round(size);
+    context.textSizes.set(size, name);
+  }
+  if (!context.textWeights.has(weight)) {
+    const name = '--font-weight-' + weight;
+    context.textWeights.set(weight, name);
+  }
+  return {
+    family: context.textFamilies.get(family),
+    size: context.textSizes.get(size),
+    weight: context.textWeights.get(weight),
+  };
 }
 
 export function generateDesignTokens(context) {
-  if (context.colors.size === 0 && context.textStyles.size === 0) return '';
+  if (context.colors.size === 0 && context.textFamilies.size === 0) return '';
   let css = ':root {\n';
+  
+  // ── Colors ──
   for (const [, val] of context.colors) {
     css += '  ' + val.name + ': ' + val.value + ';\n';
   }
-  for (const [, val] of context.textStyles) {
-    css += '  ' + val.name + '-family: \'' + val.family + '\', sans-serif;\n';
-    css += '  ' + val.name + '-size: ' + val.size + 'px;\n';
-    css += '  ' + val.name + '-weight: ' + val.weight + ';\n';
+  
+  // ── Typography Categorized ──
+  if (context.textFamilies.size > 0) css += '\n  /* Font Families */\n';
+  for (const [val, name] of context.textFamilies) {
+    css += '  ' + name + ': \'' + val + '\', sans-serif;\n';
   }
+  
+  if (context.textSizes.size > 0) css += '\n  /* Font Sizes */\n';
+  for (const [val, name] of context.textSizes) {
+    css += '  ' + name + ': ' + val + 'px;\n';
+  }
+  
+  if (context.textWeights.size > 0) css += '\n  /* Font Weights */\n';
+  for (const [val, name] of context.textWeights) {
+    css += '  ' + name + ': ' + val + ';\n';
+  }
+  
   css += '}\n';
   return css;
 }
+
 
 // ── #16 Google Fonts (only used weights) ──
 

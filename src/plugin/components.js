@@ -2,7 +2,7 @@
  * Component registry: detect repeated Figma instances, collect text data.
  */
 
-import { sanitizeName } from './utils.js';
+import { sanitizeName } from './lib/naming.js';
 
 export function collectTexts(node) {
   var texts = [];

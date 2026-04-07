@@ -4,8 +4,10 @@
  * #24 — Simple hover-only opacity/color changes → CSS :hover instead of JS.
  */
 
-import { getClassName, applySizingRules, mapEasingToCss, needsPositionRelative } from './utils.js';
-import { processNode } from './process.js';
+import { getClassName } from './lib/naming.js';
+import { applySizingRules, needsPositionRelative } from './lib/geometry.js';
+import { mapEasingToCss } from './lib/mappings.js';
+import { processNode } from './processor/index.js';
 
 export async function processInteractiveGraph(node, parentLayoutMode, isRoot, context) {
   let css = '';
