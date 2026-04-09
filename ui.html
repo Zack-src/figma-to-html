@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com;">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
@@ -10,7 +11,12 @@
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: #1e1e1e;
@@ -30,6 +36,7 @@
       border-bottom: 1px solid #333;
       flex-shrink: 0;
     }
+
     .top-bar button {
       font-size: 11px;
       font-weight: 600;
@@ -39,10 +46,22 @@
       cursor: pointer;
       color: #fff;
     }
-    #btn-generate { background: #10a37f; }
-    #btn-generate:hover { background: #0e8c6d; }
-    #btn-debug { background: #e65100; }
-    #btn-debug:hover { background: #bf360c; }
+
+    #btn-generate {
+      background: #10a37f;
+    }
+
+    #btn-generate:hover {
+      background: #0e8c6d;
+    }
+
+    #btn-debug {
+      background: #e65100;
+    }
+
+    #btn-debug:hover {
+      background: #bf360c;
+    }
 
     /* ── Tabs ── */
     .tabs {
@@ -51,6 +70,7 @@
       border-bottom: 1px solid #333;
       flex-shrink: 0;
     }
+
     .tab {
       padding: 7px 16px;
       font-size: 11px;
@@ -60,8 +80,15 @@
       user-select: none;
       transition: color .15s;
     }
-    .tab:hover { color: #ccc; }
-    .tab.active { color: #fff; border-bottom-color: #10a37f; }
+
+    .tab:hover {
+      color: #ccc;
+    }
+
+    .tab.active {
+      color: #fff;
+      border-bottom-color: #10a37f;
+    }
 
     /* ── Tab panels ── */
     .tab-panel {
@@ -70,15 +97,24 @@
       overflow: auto;
       min-height: 0;
     }
-    .tab-panel.active { display: flex; flex-direction: column; }
+
+    .tab-panel.active {
+      display: flex;
+      flex-direction: column;
+    }
 
     /* ── Options panel ── */
-    #panel-options { padding: 10px 12px; gap: 10px; }
+    #panel-options {
+      padding: 10px 12px;
+      gap: 10px;
+    }
+
     .opt-group {
       background: #2d2d2d;
       border-radius: 6px;
       padding: 10px 12px;
     }
+
     .opt-group-title {
       font-size: 11px;
       font-weight: 700;
@@ -87,24 +123,28 @@
       letter-spacing: .5px;
       margin-bottom: 8px;
     }
+
     .opt-row {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 3px 0;
     }
+
     .opt-row label {
       font-size: 11px;
       color: #bbb;
       flex: 1;
       cursor: pointer;
     }
+
     .opt-row input[type="checkbox"] {
       accent-color: #10a37f;
       width: 14px;
       height: 14px;
       cursor: pointer;
     }
+
     .opt-row select {
       background: #1e1e1e;
       color: #ccc;
@@ -115,13 +155,17 @@
     }
 
     /* ── Code panels ── */
-    #panel-code { padding: 0; }
+    #panel-code {
+      padding: 0;
+    }
+
     .code-tabs {
       display: flex;
       background: #1e1e1e;
       border-bottom: 1px solid #333;
       flex-shrink: 0;
     }
+
     .code-tab {
       padding: 5px 14px;
       font-size: 10px;
@@ -129,8 +173,16 @@
       cursor: pointer;
       border-bottom: 2px solid transparent;
     }
-    .code-tab:hover { color: #ccc; }
-    .code-tab.active { color: #fff; border-bottom-color: #569cd6; }
+
+    .code-tab:hover {
+      color: #ccc;
+    }
+
+    .code-tab.active {
+      color: #fff;
+      border-bottom-color: #569cd6;
+    }
+
     .copy-btn {
       margin-left: auto;
       background: transparent;
@@ -141,13 +193,19 @@
       font-size: 10px;
       cursor: pointer;
     }
-    .copy-btn:hover { color: #fff; border-color: #888; }
+
+    .copy-btn:hover {
+      color: #fff;
+      border-color: #888;
+    }
+
     .code-content {
       flex: 1;
       overflow: auto;
       padding: 8px;
       min-height: 0;
     }
+
     .code-content pre {
       margin: 0;
       font-size: 11px;
@@ -155,12 +213,16 @@
       white-space: pre-wrap;
       word-wrap: break-word;
     }
+
     .code-content pre code {
       font-family: 'Consolas', 'Fira Code', monospace;
     }
 
     /* ── Debug panel ── */
-    #panel-debug { padding: 8px; }
+    #panel-debug {
+      padding: 8px;
+    }
+
     #panel-debug pre {
       font-size: 11px;
       font-family: 'Consolas', monospace;
@@ -196,7 +258,11 @@
       background: #252526;
       border-radius: 4px;
     }
-    #responsive-section.visible { display: block; }
+
+    #responsive-section.visible {
+      display: block;
+    }
+
     .bp-row {
       display: flex;
       align-items: center;
@@ -205,6 +271,7 @@
       font-size: 11px;
       color: #bbb;
     }
+
     .bp-row input[type="number"] {
       width: 70px;
       background: #1e1e1e;
@@ -214,6 +281,7 @@
       padding: 2px 4px;
       font-size: 11px;
     }
+
     .bp-row .bp-name {
       flex: 1;
       overflow: hidden;
@@ -244,6 +312,17 @@
   <div id="panel-options" class="tab-panel active">
 
     <div class="opt-group">
+      <div class="opt-group-title">Format d'exportation</div>
+      <div class="opt-row">
+        <label for="opt-exportMode">Cible</label>
+        <select id="opt-exportMode">
+          <option value="html">HTML / CSS / JS</option>
+          <option value="imgui">C++ ImGui (.cpp / .h)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="opt-group" id="group-html-options">
       <div class="opt-group-title">Code &amp; Standards</div>
       <div class="opt-row">
         <input type="checkbox" id="opt-cleanCode" checked>
@@ -294,7 +373,8 @@
         <label for="opt-responsive">Breakpoints dynamiques (multi-frame)</label>
       </div>
       <div id="responsive-section">
-        <div class="bp-row" style="color:#888;font-size:10px;">Sélectionnez plusieurs frames, puis cliquez Générer.</div>
+        <div class="bp-row" style="color:#888;font-size:10px;">Sélectionnez plusieurs frames, puis cliquez Générer.
+        </div>
       </div>
       <div class="opt-row">
         <input type="checkbox" id="opt-fluidTypo">
@@ -373,21 +453,22 @@
     /* ───── Helpers ───── */
     function getOptions() {
       return {
-        cleanCode:       document.getElementById('opt-cleanCode').checked,
-        designTokens:    document.getElementById('opt-designTokens').checked,
-        semanticHtml:    document.getElementById('opt-semanticHtml').checked,
-        cssGrid:         document.getElementById('opt-cssGrid').checked,
-        imageFormat:     document.getElementById('opt-imageFormat').value,
-        googleFonts:     document.getElementById('opt-googleFonts').checked,
-        svgMode:         document.getElementById('opt-svgMode').value,
-        responsive:      document.getElementById('opt-responsive').checked,
-        fluidTypo:       document.getElementById('opt-fluidTypo').checked,
-        externalLinks:   document.getElementById('opt-externalLinks').checked,
-        keyframeAnim:    document.getElementById('opt-keyframeAnim').checked,
-        extraTriggers:   document.getElementById('opt-extraTriggers').checked,
-        ariaRoles:       document.getElementById('opt-ariaRoles').checked,
-        altText:         document.getElementById('opt-altText').checked,
-        minifyCss:       document.getElementById('opt-minifyCss').checked,
+        cleanCode: document.getElementById('opt-cleanCode').checked,
+        designTokens: document.getElementById('opt-designTokens').checked,
+        semanticHtml: document.getElementById('opt-semanticHtml').checked,
+        cssGrid: document.getElementById('opt-cssGrid').checked,
+        imageFormat: document.getElementById('opt-imageFormat').value,
+        googleFonts: document.getElementById('opt-googleFonts').checked,
+        svgMode: document.getElementById('opt-svgMode').value,
+        responsive: document.getElementById('opt-responsive').checked,
+        fluidTypo: document.getElementById('opt-fluidTypo').checked,
+        externalLinks: document.getElementById('opt-externalLinks').checked,
+        keyframeAnim: document.getElementById('opt-keyframeAnim').checked,
+        extraTriggers: document.getElementById('opt-extraTriggers').checked,
+        ariaRoles: document.getElementById('opt-ariaRoles').checked,
+        altText: document.getElementById('opt-altText').checked,
+        minifyCss: document.getElementById('opt-minifyCss').checked,
+        exportMode: document.getElementById('opt-exportMode').value,
       };
     }
 
@@ -406,7 +487,7 @@
     }
 
     function escapeHtml(str) {
-      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     function highlightCode(code, lang) {
@@ -418,8 +499,8 @@
 
     function updateCodePanels(html, css, js) {
       document.getElementById('code-html').innerHTML = highlightCode(html || '', 'markup');
-      document.getElementById('code-css').innerHTML  = highlightCode(css || '', 'css');
-      document.getElementById('code-js').innerHTML   = highlightCode(js || '', 'javascript');
+      document.getElementById('code-css').innerHTML = highlightCode(css || '', 'css');
+      document.getElementById('code-js').innerHTML = highlightCode(js || '', 'javascript');
     }
 
     /* ───── Tabs ───── */
@@ -443,18 +524,29 @@
 
     /* ───── #30 Copy to clipboard ───── */
     var currentCodeTab = 'html';
-    document.querySelectorAll('.code-tabs .code-tab').forEach(function(t) {
-      t.addEventListener('click', function() { if (t.dataset.codetab) currentCodeTab = t.dataset.codetab; });
+    document.querySelectorAll('.code-tabs .code-tab').forEach(function (t) {
+      t.addEventListener('click', function () { if (t.dataset.codetab) currentCodeTab = t.dataset.codetab; });
     });
-    document.getElementById('copy-btn').addEventListener('click', function() {
+    document.getElementById('copy-btn').addEventListener('click', function () {
       var el = document.getElementById('code-' + currentCodeTab);
       if (el) {
         var text = el.textContent || '';
-        navigator.clipboard.writeText(text).then(function() {
+        navigator.clipboard.writeText(text).then(function () {
           setStatus('Copié !');
-        }).catch(function() {
+        }).catch(function () {
           setStatus('Erreur de copie');
         });
+      }
+    });
+
+    /* ───── Export mode toggle ───── */
+    document.getElementById('opt-exportMode').addEventListener('change', (e) => {
+      const isImGui = e.target.value === 'imgui';
+      //Hide HTML specific options
+      var htmlGroup = document.getElementById('group-html-options');
+      if (htmlGroup) {
+        htmlGroup.style.opacity = isImGui ? '0.5' : '1';
+        htmlGroup.style.pointerEvents = isImGui ? 'none' : 'auto';
       }
     });
 
@@ -536,18 +628,121 @@
     }
 
     /* ───── ZIP builder ───── */
-    function buildAndDownloadZip(msg) {
+    async function buildAndDownloadZip(msg) {
       const zip = new JSZip();
       const assetsFolder = zip.folder('assets');
 
+      if (msg.exportMode === 'imgui') {
+        setStatus('Création du ZIP ImGui...');
+
+        const headerName = msg.allInOneName || 'ui_generated.h';
+
+        // ── Single all-in-one header file
+        zip.file(headerName, msg.allInOneHeader || '// generation error\n');
+
+        // ── Font TTFs (optional — downloaded from Google Fonts)
+        if (msg.fonts && msg.fonts.length > 0) {
+          let fontsInit = '';
+          for (const fontName of msg.fonts) {
+            if (fontName === 'Default') continue;
+            try {
+              const familyUrl = encodeURIComponent(fontName).replace(/%20/g, '+');
+              const resCss = await fetch(`https://fonts.googleapis.com/css?family=${familyUrl}`);
+              if (resCss.ok) {
+                const cssText = await resCss.text();
+                const match = cssText.match(/url\((https:\/\/[^)]+\.ttf)\)/);
+                if (match && match[1]) {
+                  const ttfRes = await fetch(match[1]);
+                  const ttfData = await ttfRes.arrayBuffer();
+                  assetsFolder.file(fontName + '.ttf', ttfData);
+                  fontsInit += `    io.Fonts->AddFontFromFileTTF("assets/${fontName}.ttf", 16.0f);\n`;
+                }
+              }
+            } catch (err) { console.error('Font fetch failed', err); }
+          }
+          if (fontsInit) {
+            zip.file('InitFonts.h', [
+              '#pragma once',
+              '// Call InitImGuiFonts(ImGui::GetIO()) after ImGui::CreateContext().',
+              '#include "imgui.h"',
+              '',
+              'inline void InitImGuiFonts(ImGuiIO& io) {',
+              fontsInit + '}',
+              '',
+            ].join('\n'));
+          }
+        }
+
+        // ── PNG image assets
+        if (msg.imageAssets && msg.imageAssets.length > 0) {
+          msg.imageAssets.forEach(function (asset) {
+            const bytes = Uint8Array.from(atob(asset.base64), function (c) { return c.charCodeAt(0); });
+            assetsFolder.file(asset.filename, bytes);
+          });
+        }
+
+        // ── SVG assets
+        if (msg.svgAssets && msg.svgAssets.length > 0) {
+          msg.svgAssets.forEach(function (asset) {
+            assetsFolder.file(asset.filename, asset.content);
+          });
+        }
+
+        // ── README
+        const readme = [
+          '# Auto-generated ImGui UI',
+          '',
+          '## How to integrate',
+          '',
+          '```cpp',
+          '// 1. Include the generated header',
+          '#include "' + headerName + '"',
+          '',
+          '// 2. Implement GetTextureID() at the top of the file (or in a .cpp)',
+          '//    (see the stub already included in the header)',
+          '',
+          '// 3. Call once after ImGui::CreateContext() (if fonts were found):',
+          '//    InitImGuiFonts(ImGui::GetIO());',
+          '',
+          '// 4. Call each frame in your render loop:',
+          '    Render' + (headerName.replace('.h','')) + '();',
+          '```',
+          '',
+          '## Files',
+          '',
+          '| File | Description |',
+          '|------|-------------|',
+          '| ' + headerName + ' | All-in-one: colors, components, main render function |',
+          '| InitFonts.h | Font setup (only if fonts were downloaded) |',
+          '| assets/*.png | Image assets referenced in the UI |',
+          '',
+          '> Tip: Coordinates are in Figma canvas pixels.',
+          '> The window is sized automatically to match the Figma frame.',
+        ].join('\n');
+        zip.file('README.md', readme);
+
+        setStatus('Compression du ZIP ImGui...');
+        zip.generateAsync({ type: 'blob' }).then(function (content) {
+          const url = URL.createObjectURL(content);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'export_imgui.zip';
+          a.click();
+          URL.revokeObjectURL(url);
+          setStatus('ZIP ImGui téléchargé ✓');
+        });
+        return;
+      }
+
+      // Default HTML Mode
       if (msg.imageAssets && msg.imageAssets.length > 0) {
-        msg.imageAssets.forEach(function(asset) {
-          const bytes = Uint8Array.from(atob(asset.base64), function(c) { return c.charCodeAt(0); });
+        msg.imageAssets.forEach(function (asset) {
+          const bytes = Uint8Array.from(atob(asset.base64), function (c) { return c.charCodeAt(0); });
           assetsFolder.file(asset.filename, bytes);
         });
       }
       if (msg.svgAssets && msg.svgAssets.length > 0) {
-        msg.svgAssets.forEach(function(asset) {
+        msg.svgAssets.forEach(function (asset) {
           assetsFolder.file(asset.filename, asset.content);
         });
       }
@@ -568,7 +763,7 @@
       zip.file('style.css', cssContent);
 
       setStatus('Création du ZIP...');
-      zip.generateAsync({ type: 'blob' }).then(function(content) {
+      zip.generateAsync({ type: 'blob' }).then(function (content) {
         const url = URL.createObjectURL(content);
         const a = document.createElement('a');
         a.href = url;

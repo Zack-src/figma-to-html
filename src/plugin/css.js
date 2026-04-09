@@ -45,13 +45,13 @@ export function collectTextTokens(family, size, weight, context) {
 export function generateDesignTokens(context) {
   if (context.colors.size === 0 && context.textFamilies.size === 0 && context.textSizes.size === 0 && context.textWeights.size === 0) return '';
   let css = ':root {\n';
-  
+
   // ── Colors (Sorted by Name) ──
   const colorSorted = Array.from(context.colors.values()).sort((a, b) => a.name.localeCompare(b.name));
   for (const val of colorSorted) {
     css += '  ' + val.name + ': ' + val.value + ';\n';
   }
-  
+
   // ── Typography Categorized & Sorted ──
   if (context.textFamilies.size > 0) {
     css += '\n  /* Font Families */\n';
@@ -60,7 +60,7 @@ export function generateDesignTokens(context) {
       css += '  ' + name + ': \'' + val + '\', sans-serif;\n';
     }
   }
-  
+
   if (context.textSizes.size > 0) {
     css += '\n  /* Font Sizes */\n';
     const sizesGroup = Array.from(context.textSizes.entries()).sort((a, b) => a[0] - b[0]);
@@ -68,7 +68,7 @@ export function generateDesignTokens(context) {
       css += '  ' + name + ': ' + val + 'px;\n';
     }
   }
-  
+
   if (context.textWeights.size > 0) {
     css += '\n  /* Font Weights */\n';
     const weightsGroup = Array.from(context.textWeights.entries()).sort((a, b) => a[0] - b[0]);
@@ -76,7 +76,7 @@ export function generateDesignTokens(context) {
       css += '  ' + name + ': ' + val + ';\n';
     }
   }
-  
+
   css += '}\n';
   return css;
 }

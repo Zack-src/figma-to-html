@@ -1,14 +1,19 @@
 {
-  "name": "Figma to HTML",
+  "name": "Figma to code",
   "id": "1618680495570213103",
   "api": "1.0.0",
   "main": "dist/code.js",
   "capabilities": [],
   "enableProposedApi": false,
   "documentAccess": "dynamic-page",
-  "editorType": ["figma"],
+  "editorType": [
+    "figma"
+  ],
   "ui": "ui.html",
   "networkAccess": {
-    "allowedDomains": ["https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"]
+    "allowedDomains": [
+      "https://cdnjs.cloudflare.com",
+      "https://cdn.jsdelivr.net"
+    ]
   }
 }

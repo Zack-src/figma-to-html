@@ -8,6 +8,7 @@ import { buildComponentDataJs } from './components.js';
 import { processNode } from './processor/index.js';
 import { processResponsive } from './responsive.js';
 import { extractNodeData } from './debug.js';
+import { processNodeToImGui, generateAllInOneHeader } from './processor/imgui.js';
 
 figma.showUI(__html__, { width: 650, height: 750 });
 
@@ -41,6 +42,42 @@ figma.ui.onmessage = async (msg) => {
       figma.ui.postMessage({ type: 'progress', current: 0, total: totalNodes });
 
       let result;
+      if (opts.exportMode === 'imgui') {
+        const rootNode = selection[0];
+        const projectName = rootNode.name || 'FigmaExport';
+
+        // Process the root frame — everything is relative to (0,0) root origin
+        const innerCode = await processNodeToImGui(
+          rootNode, context, '    ', 0, 0
+        );
+
+        // Generate the all-in-one header
+        const allInOne = generateAllInOneHeader(
+          projectName,
+          innerCode,
+          context,
+          rootNode.width,
+          rootNode.height,
+          rootNode.cornerRadius
+        );
+
+        const safeName = projectName.replace(/[^a-zA-Z0-9_]/g, '_');
+
+        figma.ui.postMessage({
+          type: 'success',
+          html: allInOne,           // Show in code panel
+          css: '',
+          js: '',
+          exportMode: 'imgui',
+          allInOneHeader: allInOne,
+          allInOneName: safeName + '.h',
+          fonts: Array.from(context.fonts),
+          imageAssets: context.imageAssets,
+          svgAssets: context.svgAssets,
+        });
+        return;
+      }
+
       if (opts.responsive && selection.length > 1) {
         result = await processResponsive(selection, context);
       } else {

@@ -18,6 +18,7 @@ export const DEFAULT_OPTIONS = {
   ariaRoles: true,
   altText: true,
   minifyCss: false,
+  exportMode: 'html', // 'html' | 'imgui'
 };
 
 /**
@@ -47,5 +48,11 @@ export function createContext(opts) {
     componentRegistry: new Map(),
     nodeCount: 0,
     processedCount: 0,
+    cppCode: '',
+    cppHeaders: [],
+    fontAssets: [],
+    cppComponents: new Map(),
+    cppColors: new Map(), // key: "IM_COL32(r,g,b,a)" → value: { r, g, b, a, usageHints: Set }
+    resCounter: 0,
   };
 }
